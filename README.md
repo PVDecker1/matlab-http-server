@@ -4,7 +4,8 @@ A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build RES
 
 [![MATLAB](https://img.shields.io/badge/MATLAB-R2022b%2B-blue)](https://www.mathworks.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/YOUR_USERNAME/matlab-http-server/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/matlab-http-server/actions)
+[![CI](https://github.com/PVDecker1/matlab-http-server/actions/workflows/ci.yml/badge.svg)](https://github.com/PVDecker1/matlab-http-server/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-90%25-green)](#) <!-- TODO: Connect to real coverage service -->
 
 ---
 
@@ -63,11 +64,11 @@ See [`toolbox/doc/GettingStarted.mlx`](toolbox/doc/GettingStarted.mlx) for an in
 ### Installation
 
 **Option 1 — MATLAB Toolbox (recommended):**
-Download the latest `.mltbx` from [Releases](https://github.com/YOUR_USERNAME/matlab-http-server/releases) and double-click to install.
+Download the latest `.mltbx` from [Releases](https://github.com/PVDecker1/matlab-http-server/releases) and double-click to install.
 
 **Option 2 — Clone and add to path:**
 ```matlab
-git clone https://github.com/YOUR_USERNAME/matlab-http-server.git
+git clone https://github.com/PVDecker1/matlab-http-server.git
 addpath(fullfile(pwd, 'matlab-http-server', 'toolbox'))
 ```
 
@@ -83,6 +84,9 @@ addpath(fullfile(pwd, 'matlab-http-server', 'toolbox'))
 - **BasicExample**: Minimal controller showing basic routing and JSON echo. Run with `runBasicExample.m`.
 - **MultiControllerExample**: Demonstrates registering multiple controllers on one server. Run with `runMultiControllerExample.m`.
 - **SignalAnalyzer**: A modern React-based dashboard that generates and analyzes signals using MATLAB's computational engine. Run with `runSignalAnalyzer.m`.
+
+![Signal Analyzer](images/signal-analyzer.png)
+<!-- Placeholder: Add real screenshot of Signal Analyzer UI above -->
 
 ---
 
@@ -309,11 +313,10 @@ matlab-http-server/
 
 ## Contributing
 
-Tests are required for all new functionality. Run the test suite:
-
+Tests are required for all new functionality. Run tests before submitting:
 ```matlab
-results = runtests('tests/');
-table(results)
+buildtool test   % runs tests + coverage report
+buildtool ci     % full pipeline: check + test + package
 ```
 
 See [AGENTS.md](AGENTS.md) for architecture details, coding conventions, and guidance for AI coding agents working on this codebase.

@@ -12,6 +12,10 @@ classdef MatlabHttpServer < handle
     properties (Access = private)
         TcpServer % The underlying tcpserver instance
         Router (1,1) mhs.Router
+
+        % TODO: Clients that connect but never complete a request leave a
+        % BufferAccumulator in ClientStates forever. A max-age cleanup 
+        % strategy is needed in a future release to prevent memory leaks.
         ClientStates (1,1) dictionary = dictionary() % map of ClientAddress to BufferAccumulator
     end
 
@@ -80,6 +84,15 @@ classdef MatlabHttpServer < handle
         function processRequestForTesting(obj, src, rawBytes)
             % PROCESSREQUESTFORTESTING Public wrapper for testing processRequest
             obj.processRequest(src, rawBytes);
+        end
+
+        function callCallbackForTesting(obj, name, src, event)
+            % CALLCALLBACKFORTESTING Public wrapper for testing private callbacks
+            if strcmp(name, "onConnectionChanged")
+                obj.onConnectionChanged(src, event);
+            elseif strcmp(name, "onDataReceived")
+                obj.onDataReceived(src, event);
+            end
         end
     end
 

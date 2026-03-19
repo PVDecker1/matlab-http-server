@@ -61,6 +61,10 @@ classdef HttpResponse < handle
                 text (1,1) string
             end
 
+            if obj.Sent
+                return;
+            end
+
             obj.Body = unicode2native(char(text), 'utf-8')';
             obj.write();
         end
@@ -70,6 +74,10 @@ classdef HttpResponse < handle
             arguments
                 obj (1,1) mhs.HttpResponse
                 data
+            end
+
+            if obj.Sent
+                return;
             end
 
             obj.header("Content-Type", "application/json");

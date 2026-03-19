@@ -99,6 +99,7 @@ Follow the [MATLAB Coding Guidelines](https://github.com/mathworks/MATLAB-Coding
 - All classes use `classdef ... < handle` unless it is a pure value type
 - Value classes (`HttpRequest`) use plain `classdef` (no superclass)
 - Use `arguments` blocks for all public method input validation — do not use manual `narginchk`/`validateattributes`
+- All `error()` calls must use a two-part identifier string in the format "ClassName:ErrorType" (e.g. "HttpParser:InvalidJson"). Plain string error messages without identifiers are not acceptable in framework code.
 - Prefer `string` type over `char` for new code — be explicit at type boundaries using `string()` or `char()`
 - **Use `dictionary` instead of `containers.Map`** for all new mapping needs (requires R2022b+)
 - Every public function and class must have a help comment block immediately after the definition line
@@ -136,12 +137,17 @@ Do not create new top-level namespaces. All new namespace code belongs under `+m
 
 Routes are registered by overriding the abstract `registerRoutes` method. This method is called automatically by the `ApiController` constructor. MATLAB will throw an error at instantiation if it is not implemented — this is intentional and desirable.
 
+**Warning: Route Ordering Hazard.** Routes are matched in registration order. Specific routes (e.g. `/api/users/me`) must be registered BEFORE parameterized routes (e.g. `/api/users/:id`) that would otherwise shadow them.
+
 ```matlab
 methods (Access = protected)
     function registerRoutes(obj)
-        obj.get('/api/users',        @obj.getUsers);
-        obj.post('/api/users',        @obj.createUser);
+        % Correct ordering: specific before general
+        obj.get('/api/users/me',     @obj.getMe);
         obj.get('/api/users/:id',    @obj.getUserById);
+        
+        obj.get('/api/users',        @obj.getUsers);
+        obj.post('/api/users',       @obj.createUser);
         obj.put('/api/users/:id',    @obj.updateUser);
         obj.delete('/api/users/:id', @obj.deleteUser);
     end
@@ -164,6 +170,15 @@ end
 ### Handler Signature
 
 All handler methods **must** declare `res` as both an input and output argument. Do not rely on handle mutation alone — returning `res` explicitly makes data flow clear and avoids aliasing issues near concurrent execution.
+
+It is idiomatic to use the `~` receiver pattern for `obj` and/or `req` if they are not used in the handler:
+
+```matlab
+% obj and req not needed
+function res = getStatus(~, ~, res)
+    res.json(struct('status', 'ok'));
+end
+```
 
 ```matlab
 % Correct
@@ -256,13 +271,25 @@ CI runs automatically on every push via GitHub Actions using a MATLAB licensed r
 
 ---
 
+## Build & CI
+
+- The project uses `buildtool` with `buildfile.m` at the project root.
+- Default task is `test`. Full pipeline is `buildtool ci`.
+- Coverage threshold is 90% per file (line coverage).
+- Coverage is enforced by `scripts/checkCoverage.m` called from `buildfile.m` after the test task.
+- CI runs on GitHub Actions via `.github/workflows/ci.yml`.
+- Toolbox is packaged automatically on push to main and on `v*` tags.
+- Releases are created automatically on `v*` tags.
+
+---
+
 ## Git Conventions
 
+- Tag format for releases: `vMAJOR.MINOR.PATCH` (e.g. `v1.0.0`)
+- CI badge is in README and must stay green before merge.
 - Branch naming: `feature/short-description`, `fix/short-description`
 - Commit messages: imperative present tense (`Add query string parsing`, not `Added...`)
 - Do not commit `.asv` autosave files, `*.mexw64`, or compiled artifacts
-- `mcc` output goes in `build/` — this is gitignored
-- `release/*.mltbx` is gitignored — it is a derived artifact
 - Every PR must pass CI before merge
 
 ---

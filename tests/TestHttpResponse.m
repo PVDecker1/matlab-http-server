@@ -2,6 +2,26 @@ classdef TestHttpResponse < matlab.unittest.TestCase
     % TestHttpResponse Unit tests for HttpResponse class
 
     methods (Test)
+        function testDefaultStatusCode(testCase)
+            res = mhs.HttpResponse();
+            [code, ~, ~] = res.getRawResponseForTesting();
+            testCase.verifyEqual(code, 200);
+        end
+
+        function testStatusChaining(testCase)
+            res = mhs.HttpResponse();
+            res.status(404);
+            [code, ~, ~] = res.getRawResponseForTesting();
+            testCase.verifyEqual(code, 404);
+        end
+
+        function testHeaderSetter(testCase)
+            res = mhs.HttpResponse();
+            res.header("X-Custom", "value");
+            [~, hdrs, ~] = res.getRawResponseForTesting();
+            testCase.verifyEqual(hdrs("X-Custom"), "value");
+        end
+
         function testSendPlainText(testCase)
             res = mhs.HttpResponse(); % No socket needed to test builder
             res.status(201).send("Hello World");
@@ -15,28 +35,83 @@ classdef TestHttpResponse < matlab.unittest.TestCase
             testCase.verifyTrue(res.isSent());
         end
 
-        function testSendJson(testCase)
+        function testSendSetsBody(testCase)
             res = mhs.HttpResponse();
-            data = struct('status', 'ok', 'count', 5);
-            res.json(data);
-
-            [code, hdrs, body] = res.getRawResponseForTesting();
-
-            testCase.verifyEqual(code, 200);
-            testCase.verifyEqual(hdrs("Content-Type"), "application/json");
-
-            bodyStr = string(char(body'));
-            decoded = jsondecode(bodyStr);
-            testCase.verifyEqual(decoded.status, 'ok');
-            testCase.verifyEqual(decoded.count, 5);
+            res.send("hello");
+            [~, ~, body] = res.getRawResponseForTesting();
+            testCase.verifyEqual(char(body'), 'hello');
+            testCase.verifyTrue(res.isSent());
         end
 
-        function testCustomHeaders(testCase)
+        function testJsonSetsContentType(testCase)
             res = mhs.HttpResponse();
-            res.header("X-Custom", "123").send("test");
-
+            res.json(struct('x', 1));
             [~, hdrs, ~] = res.getRawResponseForTesting();
-            testCase.verifyEqual(hdrs("X-Custom"), "123");
+            testCase.verifyEqual(hdrs("Content-Type"), "application/json");
+        end
+
+        function testJsonBodyContent(testCase)
+            res = mhs.HttpResponse();
+            res.json(struct('name', "Austin"));
+            [~, ~, body] = res.getRawResponseForTesting();
+            decoded = jsondecode(char(body'));
+            testCase.verifyEqual(string(decoded.name), "Austin");
+        end
+
+        function testWriteIdempotent(testCase)
+            res = mhs.HttpResponse();
+            res.send("first");
+            res.send("second");
+            [~, ~, body] = res.getRawResponseForTesting();
+            testCase.verifyEqual(char(body'), 'first');
+        end
+
+        function testIsSentFalseBeforeSend(testCase)
+            res = mhs.HttpResponse();
+            testCase.verifyFalse(res.isSent());
+        end
+
+        function testIsSentTrueAfterSend(testCase)
+            res = mhs.HttpResponse();
+            res.send("x");
+            testCase.verifyTrue(res.isSent());
+        end
+
+        function testStatusJsonChaining(testCase)
+            res = mhs.HttpResponse();
+            res.status(201).json(struct('ok', true));
+            [code, ~, body] = res.getRawResponseForTesting();
+            testCase.verifyEqual(code, 201);
+            decoded = jsondecode(char(body'));
+            testCase.verifyTrue(decoded.ok);
+        end
+
+        function testCorsHeadersInjected(testCase)
+            res = mhs.HttpResponse();
+            res.send("");
+            [~, hdrs, ~] = res.getRawResponseForTesting();
+            testCase.verifyTrue(isKey(hdrs, "Access-Control-Allow-Origin"));
+            testCase.verifyEqual(hdrs("Access-Control-Allow-Origin"), "*");
+        end
+
+        function testCustomAllowedOrigin(testCase)
+            res = mhs.HttpResponse([], "http://localhost:3000");
+            res.send("");
+            [~, hdrs, ~] = res.getRawResponseForTesting();
+            testCase.verifyEqual(hdrs("Access-Control-Allow-Origin"), "http://localhost:3000");
+        end
+
+        function testContentLengthSet(testCase)
+            res = mhs.HttpResponse();
+            res.send("hello");
+            [~, hdrs, ~] = res.getRawResponseForTesting();
+            testCase.verifyEqual(hdrs("Content-Length"), "5");
+        end
+
+        function testConnectionCloseHeader(testCase)
+            res = mhs.HttpResponse();
+            [~, hdrs, ~] = res.getRawResponseForTesting();
+            testCase.verifyEqual(hdrs("Connection"), "close");
         end
     end
 end
