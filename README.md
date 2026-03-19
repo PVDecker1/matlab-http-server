@@ -1,8 +1,8 @@
 # matlab-http-server
 
-A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build REST APIs and serve local or team-facing web applications — entirely in MATLAB, no external toolboxes required beyond `tcpserver` (R2021a+).
+A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build REST APIs and serve local or team-facing web applications — entirely in MATLAB, no external toolboxes required beyond `tcpserver` (R2021a+) and `dictionary` (R2022b+).
 
-[![MATLAB](https://img.shields.io/badge/MATLAB-R2021a%2B-blue)](https://www.mathworks.com)
+[![MATLAB](https://img.shields.io/badge/MATLAB-R2022b%2B-blue)](https://www.mathworks.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/YOUR_USERNAME/matlab-http-server/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/matlab-http-server/actions)
 
@@ -41,6 +41,17 @@ server.register(MyController());
 server.start();
 ```
 
+Test it from your terminal:
+
+```bash
+# General / Linux / macOS / PowerShell (Recommended)
+curl http://localhost:8080/api/hello
+curl http://localhost:8080/api/echo -d '{"msg":"hi"}' -H "Content-Type: application/json"
+
+# Windows CMD (Not recommended, requires escaping)
+curl http://localhost:8080/api/echo -d "{\"msg\":\"hi\"}" -H "Content-Type: application/json"
+```
+
 No config files, no external dependencies, no MATLAB Production Server license.
 
 ---
@@ -62,10 +73,16 @@ addpath(fullfile(pwd, 'matlab-http-server', 'toolbox'))
 
 ### Requirements
 
-- MATLAB R2021a or later (`tcpserver` introduced in R2021a)
+- MATLAB R2022b or later (`dictionary` introduced in R2022b)
 - No additional toolboxes required for core functionality
 - Parallel Computing Toolbox — optional, for async handler pattern
 - MATLAB Compiler — optional, for MCR/Docker deployment
+
+### Available Examples
+
+- **BasicExample**: Minimal controller showing basic routing and JSON echo. Run with `runBasicExample.m`.
+- **MultiControllerExample**: Demonstrates registering multiple controllers on one server. Run with `runMultiControllerExample.m`.
+- **SignalAnalyzer**: A modern React-based dashboard that generates and analyzes signals using MATLAB's computational engine. Run with `runSignalAnalyzer.m`.
 
 ---
 

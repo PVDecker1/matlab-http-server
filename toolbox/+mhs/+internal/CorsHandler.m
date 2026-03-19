@@ -4,15 +4,15 @@ classdef CorsHandler
 
     methods (Static)
         function headers = getCorsHeaders(allowedOrigin)
-            % GETCORSHEADERS Return a containers.Map of standard CORS headers
+            % GETCORSHEADERS Return a dictionary of standard CORS headers
             arguments
                 allowedOrigin (1,1) string = "*"
             end
 
-            headers = containers.Map('KeyType', 'char', 'ValueType', 'char');
-            headers('Access-Control-Allow-Origin') = char(allowedOrigin);
-            headers('Access-Control-Allow-Methods') = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
-            headers('Access-Control-Allow-Headers') = 'Content-Type, Authorization';
+            headers = dictionary(...
+                "Access-Control-Allow-Origin", string(allowedOrigin), ...
+                "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS", ...
+                "Access-Control-Allow-Headers", "Content-Type, Authorization");
         end
 
         function handlePreflight(res)

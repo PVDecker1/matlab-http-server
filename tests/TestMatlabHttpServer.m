@@ -19,18 +19,23 @@ classdef TestMatlabHttpServer < matlab.unittest.TestCase
             server.register(controller);
             testCase.verifyTrue(true);
         end
-    end
-end
 
-classdef MockController < mhs.ApiController
-    methods (Access = protected)
-        function registerRoutes(obj)
-            obj.get('/test', @obj.handleTest);
-        end
-    end
-    methods
-        function res = handleTest(~, ~, res)
-            res.send("test");
+        function testProcessRequest(testCase)
+            server = MatlabHttpServer(8081);
+            server.register(MockController());
+
+            % Mock raw request bytes
+            raw = "GET /test HTTP/1.1" + char(13) + char(10) + ...
+                  "Host: localhost" + char(13) + char(10) + ...
+                  char(13) + char(10);
+            rawBytes = uint8(char(raw))';
+
+            % We can't easily mock the socket's write method here without more complexity,
+            % but calling processRequestForTesting will at least verify HttpParser visibility
+            % and basic dispatch logic.
+            server.processRequestForTesting([], rawBytes);
+
+            testCase.verifyTrue(true); % Reached here without error
         end
     end
 end

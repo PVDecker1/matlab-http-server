@@ -34,7 +34,7 @@ classdef TestRouter < matlab.unittest.TestCase
 
             bodyStr = string(char(body'));
             decoded = jsondecode(bodyStr);
-            testCase.verifyEqual(decoded.userId, "99");
+            testCase.verifyEqual(string(decoded.userId), "99");
         end
 
         function testNotFound(testCase)
@@ -50,24 +50,6 @@ classdef TestRouter < matlab.unittest.TestCase
             testCase.verifyFalse(handled);
             [code, ~, ~] = res.getRawResponseForTesting();
             testCase.verifyEqual(code, 404);
-        end
-    end
-end
-
-classdef MockRouteController < mhs.ApiController
-    methods (Access = protected)
-        function registerRoutes(obj)
-            obj.get('/api/ping', @obj.ping);
-            obj.get('/api/users/:id', @obj.getUser);
-        end
-    end
-    methods
-        function res = ping(~, ~, res)
-            res.send("pong");
-        end
-        function res = getUser(~, req, res)
-            id = req.PathParams("id");
-            res.json(struct('userId', id));
         end
     end
 end

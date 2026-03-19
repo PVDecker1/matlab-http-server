@@ -76,6 +76,11 @@ classdef MatlabHttpServer < handle
             % DELETE Destructor
             obj.stop();
         end
+
+        function processRequestForTesting(obj, src, rawBytes)
+            % PROCESSREQUESTFORTESTING Public wrapper for testing processRequest
+            obj.processRequest(src, rawBytes);
+        end
     end
 
     methods (Access = private)
@@ -130,7 +135,7 @@ classdef MatlabHttpServer < handle
         function processRequest(obj, src, rawBytes)
             % PROCESSREQUEST Parse request, handle OPTIONS, and dispatch
             try
-                req = HttpParser.parse(rawBytes);
+                req = mhs.internal.HttpParser.parse(rawBytes);
                 res = mhs.HttpResponse(src, obj.AllowedOrigin);
 
                 if strcmpi(req.Method, "OPTIONS")

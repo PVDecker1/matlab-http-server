@@ -19,10 +19,10 @@ classdef HttpRequest
             arguments
                 method (1,1) string = ""
                 path (1,1) string = ""
-                headers = containers.Map('KeyType', 'char', 'ValueType', 'char')
+                headers = dictionary(string.empty, string.empty)
                 body = []
-                queryParams = containers.Map('KeyType', 'char', 'ValueType', 'char')
-                pathParams = containers.Map('KeyType', 'char', 'ValueType', 'char')
+                queryParams = dictionary(string.empty, string.empty)
+                pathParams = dictionary(string.empty, string.empty)
             end
 
             obj.Method = method;

@@ -28,9 +28,9 @@ classdef HttpResponse < handle
             obj.AllowedOrigin = allowedOrigin;
 
             % Set default headers
-            obj.Headers = containers.Map('KeyType', 'char', 'ValueType', 'char');
-            obj.Headers('Content-Type') = 'text/plain';
-            obj.Headers('Connection') = 'close';
+            obj.Headers = dictionary(string.empty, string.empty);
+            obj.Headers("Content-Type") = "text/plain";
+            obj.Headers("Connection") = "close";
         end
 
         function obj = status(obj, code)
@@ -51,7 +51,7 @@ classdef HttpResponse < handle
                 value (1,1) string
             end
 
-            obj.Headers(char(name)) = char(value);
+            obj.Headers(name) = value;
         end
 
         function obj = send(obj, text)
@@ -93,9 +93,9 @@ classdef HttpResponse < handle
 
             % Add CORS headers
             corsHeaders = mhs.internal.CorsHandler.getCorsHeaders(obj.AllowedOrigin);
-            k = corsHeaders.keys();
-            for i = 1:numel(k)
-                obj.header(k{i}, corsHeaders(k{i}));
+            headerKeys = corsHeaders.keys();
+            for i = 1:numel(headerKeys)
+                obj.header(headerKeys(i), corsHeaders(headerKeys(i)));
             end
 
             % Build response bytes
@@ -103,10 +103,10 @@ classdef HttpResponse < handle
             statusLine = "HTTP/1.1 " + string(obj.StatusCode) + " " + phrase + char(13) + char(10);
 
             headerLines = "";
-            headerKeys = obj.Headers.keys();
-            for i = 1:numel(headerKeys)
-                key = string(headerKeys{i});
-                val = string(obj.Headers(headerKeys{i}));
+            hKeys = obj.Headers.keys();
+            for i = 1:numel(hKeys)
+                key = hKeys(i);
+                val = obj.Headers(key);
                 headerLines = headerLines + key + ": " + val + char(13) + char(10);
             end
 

@@ -58,7 +58,7 @@ classdef Router < handle
 
                         % Extract path parameters
                         for j = 1:numel(route.ParamNames)
-                            req.PathParams(char(route.ParamNames(j))) = char(string(tokens{j}));
+                            req.PathParams(route.ParamNames(j)) = string(tokens{j});
                         end
 
                         % Call handler
