@@ -19,7 +19,7 @@ MatlabHttpServer
     └── tcpserver (R2021a+)
         ├── ConnectionChangedFcn → onConnect()
         └── Data callback → onData()
-            └── HttpParser (private)
+            └── mhs.internal.HttpParser.parse()
                 ├── parseRequestLine()
                 ├── parseHeaders()
                 └── parseBody()
@@ -35,11 +35,11 @@ MatlabHttpServer
 |---|---|---|
 | `MatlabHttpServer` | `toolbox/MatlabHttpServer.m` | Primary entry point. No namespace — used directly. Owns `tcpserver`, manages connection lifecycle, feeds raw bytes to `HttpParser` |
 | `mhs.ApiController` | `toolbox/+mhs/ApiController.m` | Abstract base class users inherit from. Provides `obj.get()`, `obj.post()` etc. Declares abstract `registerRoutes`. Calls `registerRoutes` in constructor. |
-| `mhs.HttpRequest` | `toolbox/+mhs/HttpRequest.m` | Value class. Holds parsed method, path, headers, body, query params, path params |
-| `mhs.HttpResponse` | `toolbox/+mhs/HttpResponse.m` | Builder-style handle class. Writes HTTP response back to socket |
+| `mhs.HttpRequest` | `toolbox/+mhs/HttpRequest.m` | Value class. Holds parsed method, path, headers, body, query params, path params. Uses `dictionary`. |
+| `mhs.HttpResponse` | `toolbox/+mhs/HttpResponse.m` | Builder-style handle class. Writes HTTP response back to socket. Uses `dictionary`. |
 | `mhs.Router` | `toolbox/+mhs/Router.m` | Aggregates multiple `mhs.ApiController` instances, dispatches by path |
 | `mhs.HttpStatus` | `toolbox/+mhs/HttpStatus.m` | Named HTTP status code constants |
-| `HttpParser` | `toolbox/private/HttpParser.m` | Private. Parses raw `uint8` buffer into `mhs.HttpRequest`. Not part of public API. |
+| `mhs.internal.HttpParser`| `toolbox/+mhs/+internal/HttpParser.m` | Internal. Parses raw `uint8` buffer into `mhs.HttpRequest`. Not part of public API. |
 
 ---
 
@@ -66,13 +66,23 @@ matlab-http-server/
 │   │       HttpStatus.m     % mhs.HttpStatus
 │   ├───+mhs/+internal/      % mhs.internal — not for end users
 │   │       BufferAccumulator.m
-│   │       RequestParser.m
+│   │       HttpParser.m
 │   │       CorsHandler.m
 │   ├───doc/
 │   │       GettingStarted.mlx
 │   ├───examples/
+│   │   ├───BasicExample/
+│   │   │       BasicController.m
+│   │   │       runBasicExample.m
+│   │   ├───MultiControllerExample/
+│   │   │       AdminController.m
+│   │   │       UserController.m
+│   │   │       runMultiControllerExample.m
+│   │   └───SignalAnalyzer/
+│   │           SignalProcessor.m
+│   │           index.html
+│   │           runSignalAnalyzer.m
 │   └───private/
-│           HttpParser.m
 ├───tests/                   % Tests live here, NOT in toolbox/
 └───docker/
 ```
@@ -90,8 +100,10 @@ Follow the [MATLAB Coding Guidelines](https://github.com/mathworks/MATLAB-Coding
 - Value classes (`HttpRequest`) use plain `classdef` (no superclass)
 - Use `arguments` blocks for all public method input validation — do not use manual `narginchk`/`validateattributes`
 - Prefer `string` type over `char` for new code — be explicit at type boundaries using `string()` or `char()`
+- **Use `dictionary` instead of `containers.Map`** for all new mapping needs (requires R2022b+)
 - Every public function and class must have a help comment block immediately after the definition line
 - No magic numbers — use named constants or descriptive variables
+- Minimal MATLAB version: R2022b (for `dictionary` support)
 
 ### Naming
 - Classes: `PascalCase` (e.g. `MatlabHttpServer`)
@@ -144,7 +156,7 @@ Use `:param` syntax in route paths. Parameters are extracted by the router and a
 
 ```matlab
 function res = getUserById(obj, req, res)
-    id = req.PathParams('id');
+    id = req.PathParams("id");
     res.json(struct('id', id));
 end
 ```
@@ -181,7 +193,7 @@ end
 
 These design decisions are **intentional**. Do not change them without explicit discussion:
 
-1. **Zero external dependencies.** No Python, no Node, no Java. Only MATLAB built-ins and `tcpserver`. This is a core feature and selling point.
+1. **Zero external dependencies.** No Python, no Node, no Java. Only MATLAB built-ins, `tcpserver`, and `dictionary`. This is a core feature and selling point.
 2. **Metaclass-based routing.** Routes are discovered automatically via `metaclass()` and `meta.method`. Do not replace this with a manual registration API.
 3. **One class per file.** Each class lives in its own `.m` file. Do not consolidate.
 4. **No keep-alive.** Connections close after each response. This dramatically simplifies buffer and state management.
@@ -266,10 +278,10 @@ obj.delete('/path', @obj.handler);
 obj.patch('/path',  @obj.handler);
 
 % Path parameters
-id = req.PathParams('id');
+id = req.PathParams("id");
 
 % Query parameters
-val = req.QueryParams('filter');
+val = req.QueryParams("filter");
 
 % tcpserver setup
 server = tcpserver("0.0.0.0", 8080);
@@ -292,6 +304,8 @@ c = char(stringVal);     % string → char
 ---
 
 ## HTTP Format Reference
+
+**Windows CMD Note:** When using `curl` from a Windows CMD shell, double quotes in a JSON body must be escaped (e.g., `\"{\"\"key\"\":\"\"val\"\"}\"`). PowerShell and Unix shells handle single-quoted JSON bodies correctly.
 
 **Minimal valid response:**
 ```

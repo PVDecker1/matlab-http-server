@@ -1,0 +1,17 @@
+# MATLAB Autosave
+*.asv
+
+# Compiled binaries
+*.mexw64
+*.mexa64
+*.mexmaci64
+
+# Build output
+build/
+
+# Packaging
+release/*.mltbx
+
+# OS generated files
+.DS_Store
+Thumbs.db
