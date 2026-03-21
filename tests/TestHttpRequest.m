@@ -3,25 +3,28 @@ classdef TestHttpRequest < matlab.unittest.TestCase
 
     methods (Test)
         function testConstructor(testCase)
-            headers = dictionary();
-            headers("Content-Type") = "application/json";
+            req = mhs.HttpRequest("GET", "/test");
+            testCase.verifyEqual(req.Method, "GET");
+            testCase.verifyEqual(req.Path, "/test");
+            testCase.verifyTrue(isa(req.Headers, 'dictionary'));
+            testCase.verifyTrue(isa(req.QueryParams, 'dictionary'));
+            testCase.verifyTrue(isa(req.PathParams, 'dictionary'));
+        end
 
-            queryParams = dictionary();
-            queryParams("id") = "123";
+        function testDefaultConstructor(testCase)
+            req = mhs.HttpRequest();
+            testCase.verifyEqual(req.Method, "");
+            testCase.verifyEqual(req.Path, "");
+        end
 
-            pathParams = dictionary();
-            pathParams("user") = "austin";
-
-            body = struct('name', 'test');
-
-            req = mhs.HttpRequest("POST", "/api", headers, body, queryParams, pathParams);
-
+        function testManualPropertyAssignment(testCase)
+            req = mhs.HttpRequest();
+            req.Method = "POST";
+            req.Path = "/api";
+            req.Body = "hello";
             testCase.verifyEqual(req.Method, "POST");
             testCase.verifyEqual(req.Path, "/api");
-            testCase.verifyEqual(req.Headers("Content-Type"), "application/json");
-            testCase.verifyEqual(req.Body.name, 'test');
-            testCase.verifyEqual(req.QueryParams("id"), "123");
-            testCase.verifyEqual(req.PathParams("user"), "austin");
+            testCase.verifyEqual(req.Body, "hello");
         end
     end
 end

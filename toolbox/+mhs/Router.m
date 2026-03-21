@@ -49,16 +49,19 @@ classdef Router < handle
 
                 % Match method
                 if strcmpi(req.Method, route.Method)
-                    % Match path pattern
-                    tokens = regexp(req.Path, route.Pattern, 'tokens', 'once');
+                    % Match path pattern using 'once' for initial check
+                    match = regexp(req.Path, route.Pattern, 'once');
 
-                    if ~isempty(tokens) || ~isempty(regexp(req.Path, route.Pattern, 'once'))
+                    if ~isempty(match)
                         % Route matched!
                         handled = true;
 
-                        % Extract path parameters
-                        for j = 1:numel(route.ParamNames)
-                            req.PathParams(route.ParamNames(j)) = string(tokens{j});
+                        % Extract path parameters if any are defined
+                        if ~isempty(route.ParamNames)
+                            tokens = regexp(req.Path, route.Pattern, 'tokens', 'once');
+                            for j = 1:numel(route.ParamNames)
+                                req.PathParams(route.ParamNames(j)) = string(tokens{j});
+                            end
                         end
 
                         % Call handler

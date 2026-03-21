@@ -61,7 +61,28 @@ classdef HttpResponse < handle
                 text (1,1) string
             end
 
+            if obj.Sent
+                return;
+            end
+
             obj.Body = unicode2native(char(text), 'utf-8')';
+            obj.write();
+        end
+
+        function obj = sendBytes(obj, bytes)
+            % SENDBYTES Send raw binary bytes as the HTTP response body.
+            %   Use for images, fonts, and other binary assets where UTF-8
+            %   encoding must not be applied. For text responses use send() instead.
+            arguments
+                obj   (1,1) mhs.HttpResponse
+                bytes (:,1) uint8
+            end
+
+            if obj.Sent
+                return;
+            end
+
+            obj.Body = bytes;
             obj.write();
         end
 
@@ -70,6 +91,10 @@ classdef HttpResponse < handle
             arguments
                 obj (1,1) mhs.HttpResponse
                 data
+            end
+
+            if obj.Sent
+                return;
             end
 
             obj.header("Content-Type", "application/json");

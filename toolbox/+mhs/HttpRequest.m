@@ -1,6 +1,6 @@
-classdef HttpRequest
+classdef HttpRequest < handle
     % HttpRequest Represents an incoming HTTP request
-    %   A value class containing parsed HTTP request information including
+    %   A handle class containing parsed HTTP request information including
     %   the method, path, headers, query parameters, body, and extracted
     %   path parameters.
 

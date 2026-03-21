@@ -83,11 +83,12 @@ classdef BufferAccumulator < handle
             % Sequence \r\n\r\n is [13 10 13 10]
             seq = uint8([13 10 13 10]);
 
-            for i = 1:(numel(obj.Buffer) - 3)
-                if isequal(obj.Buffer(i:i+3), seq')
-                    obj.HeaderEndIndex = i + 3;
-                    return;
-                end
+            % Use strfind for performance and consistency with HttpParser.
+            % Must transpose Buffer to row vector for strfind.
+            idx = strfind(obj.Buffer', seq);
+            if ~isempty(idx)
+                % Header end index is the end of the \r\n\r\n sequence
+                obj.HeaderEndIndex = idx(1) + 3;
             end
         end
 
