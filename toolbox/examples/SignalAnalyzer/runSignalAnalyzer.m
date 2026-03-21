@@ -21,7 +21,7 @@ disp("Opening UI: " + uiPath);
 web(uiPath, '-browser');
 
 % Keep MATLAB active if running in -batch mode
-if ~usejava('desktop')
+if batchStartupOptionUsed
     disp("Press Ctrl+C to stop the server.");
     while true
         pause(1);

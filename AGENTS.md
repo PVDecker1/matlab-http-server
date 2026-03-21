@@ -70,6 +70,12 @@ matlab-http-server/
 │   │       CorsHandler.m
 │   ├───doc/
 │   │       GettingStarted.mlx
+│   │       contributing.md
+│   │       deployment.md
+│   │       getting-started.md
+│   │       request-response.md
+│   │       routing.md
+│   │       static-file-serving.md
 │   ├───examples/
 │   │   ├───BasicExample/
 │   │   │       BasicController.m
@@ -84,7 +90,7 @@ matlab-http-server/
 │   │           runSignalAnalyzer.m
 │   └───private/
 ├───tests/                   % Tests live here, NOT in toolbox/
-└───docker/
+└───build/                   % Build artifacts (gitignored)
 ```
 
 **Critical:** Only code in `toolbox/` is distributed to users. Tests, docker files, and build utilities are never in `toolbox/`.
@@ -231,8 +237,8 @@ These design decisions are **intentional**. Do not change them without explicit 
 - Static file serving via `mhs.StaticFileHandler` and `MatlabHttpServer.serveStatic`
 - Binary file serving via `HttpResponse.sendBytes`
 - `matlab.unittest` test suite for all public classes
-- `GettingStarted.mlx` and examples in `toolbox/examples/`
-- Docker files in `docker/`
+- `GettingStarted.mlx` and markdown documentation in `toolbox/doc/`
+- Examples in `toolbox/examples/`
 - `buildfile.m` for `buildtool` automation (test, package, release tasks)
 
 ## What Is Out Of Scope
@@ -247,6 +253,9 @@ Do not implement these without opening an issue and getting approval first:
 - WebSockets
 - Static file serving
 - Parallel Computing Toolbox integration in the core server layer (optional pattern only, in user-defined handlers)
+- Docker and MCR deployment configuration
+- Kubernetes / horizontal scaling configuration
+- MATLAB Compiler (`mcc`) integration in the core framework
 
 ---
 
@@ -254,11 +263,9 @@ Do not implement these without opening an issue and getting approval first:
 
 Do not assume these are resolved. Do not write code that depends on them until validated:
 
-1. **MCR metaclass compatibility** — It is unknown whether `metaclass()` and `meta.method` survive `mcc` compilation correctly across MATLAB versions. A CI validation test is needed. Until confirmed, document as unverified. **Do not write code that assumes MCR works.**
+1. **`tcpserver` partial reads** — TCP does not guarantee a full HTTP request arrives in one callback invocation. Buffer accumulation in `MatlabHttpServer` must handle partial reads correctly. This is the most likely source of intermittent bugs — test it thoroughly.
 
-2. **`tcpserver` partial reads** — TCP does not guarantee a full HTTP request arrives in one callback invocation. Buffer accumulation in `MatlabHttpServer` must handle partial reads correctly. This is the most likely source of intermittent bugs — test it thoroughly.
-
-3. **`tcpserver` thread safety** — Callbacks run on MATLAB's main thread. Do not introduce `parfeval` or `backgroundPool` into the core server layer. Async patterns belong in user-defined controller methods only.
+2. **`tcpserver` thread safety** — Callbacks run on MATLAB's main thread. Do not introduce `parfeval` or `backgroundPool` into the core server layer. Async patterns belong in user-defined controller methods only.
 
 ---
 
