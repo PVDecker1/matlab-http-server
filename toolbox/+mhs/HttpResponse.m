@@ -69,6 +69,23 @@ classdef HttpResponse < handle
             obj.write();
         end
 
+        function obj = sendBytes(obj, bytes)
+            % SENDBYTES Send raw binary bytes as the HTTP response body.
+            %   Use for images, fonts, and other binary assets where UTF-8
+            %   encoding must not be applied. For text responses use send() instead.
+            arguments
+                obj   (1,1) mhs.HttpResponse
+                bytes (:,1) uint8
+            end
+
+            if obj.Sent
+                return;
+            end
+
+            obj.Body = bytes;
+            obj.write();
+        end
+
         function obj = json(obj, data)
             % JSON Send a JSON response
             arguments

@@ -113,5 +113,24 @@ classdef TestHttpResponse < matlab.unittest.TestCase
             [~, hdrs, ~] = res.getRawResponseForTesting();
             testCase.verifyEqual(hdrs("Connection"), "close");
         end
+
+        function testSendBytesBody(testCase)
+            res = mhs.HttpResponse();
+            bytes = uint8([1 2 3 4 5])';
+            res.sendBytes(bytes);
+            [~, ~, body] = res.getRawResponseForTesting();
+            testCase.verifyEqual(body, bytes);
+            testCase.verifyTrue(res.isSent());
+        end
+
+        function testSendBytesIdempotent(testCase)
+            res = mhs.HttpResponse();
+            bytes1 = uint8([1 2 3])';
+            bytes2 = uint8([4 5 6])';
+            res.sendBytes(bytes1);
+            res.sendBytes(bytes2);
+            [~, ~, body] = res.getRawResponseForTesting();
+            testCase.verifyEqual(body, bytes1);
+        end
     end
 end

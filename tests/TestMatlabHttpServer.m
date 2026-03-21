@@ -133,5 +133,16 @@ classdef TestMatlabHttpServer < matlab.unittest.TestCase
             server.callCallbackForTesting("onDataReceived", src, []);
             testCase.verifyTrue(true);
         end
+
+        function testServeStaticRegisters(testCase)
+            % Smoke test — confirms the method exists and accepts args
+            server = MatlabHttpServer(8081);
+            testCase.verifyWarningFree(@() server.serveStatic("."));
+        end
+
+        function testServeStaticWithUrlPrefix(testCase)
+            server = MatlabHttpServer(8081);
+            testCase.verifyWarningFree(@() server.serveStatic(".", UrlPrefix="/docs/"));
+        end
     end
 end

@@ -5,7 +5,7 @@ A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build RES
 [![MATLAB](https://img.shields.io/badge/MATLAB-R2022b%2B-blue)](https://www.mathworks.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/PVDecker1/matlab-http-server/actions/workflows/ci.yml/badge.svg)](https://github.com/PVDecker1/matlab-http-server/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-90%25-green)](#) <!-- TODO: Connect to real coverage service -->
+[![codecov](https://codecov.io/gh/PVDecker1/matlab-http-server/graph/badge.svg?token=)](https://codecov.io/gh/PVDecker1/matlab-http-server)
 
 ---
 
@@ -183,6 +183,29 @@ CORS headers are handled automatically on every response. `OPTIONS` preflight re
 ```matlab
 server = MatlabHttpServer(8080, 'AllowedOrigin', 'http://localhost:5173');
 ```
+
+---
+
+## Static File Serving
+
+`matlab-http-server` can serve static assets (HTML, CSS, JS, images) from a local directory. Static handlers are checked before the API router, allowing you to host a frontend and an API from the same server.
+
+```matlab
+server = MatlabHttpServer(8080);
+server.serveStatic("public/");
+server.start();
+```
+
+Mixed API + static example:
+
+```matlab
+server = MatlabHttpServer(8080);
+server.serveStatic("public/");
+server.register(MyController()); % handles /api/...
+server.start();
+```
+
+See [`toolbox/examples/StaticSiteExample/`](toolbox/examples/StaticSiteExample/) for a runnable demo. For more advanced configurations, see the [Static File Serving Documentation](docs/static-file-serving.md).
 
 ---
 

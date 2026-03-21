@@ -79,6 +79,20 @@ function packageAction(context)
     % Package the toolbox
     prjFile = "matlab-http-server.prj";
     outFile = "matlab-http-server.mltbx";
-    fprintf('Packaging %s into %s...\n', prjFile, outFile);
-    matlab.addons.toolbox.packageToolbox(prjFile, outFile);
+
+    % Check for GITHUB_REF_NAME environment variable to set version
+    version = string(getenv("GITHUB_REF_NAME"));
+    if startsWith(version, "v")
+        version = extractAfter(version, 1);
+        fprintf('Setting toolbox version to %s (from GITHUB_REF_NAME)\n', version);
+
+        opts = matlab.addons.toolbox.toolboxOptions(prjFile);
+        opts.ToolboxVersion = version;
+
+        fprintf('Packaging into %s...\n', outFile);
+        matlab.addons.toolbox.packageToolbox(opts, outFile);
+    else
+        fprintf('Packaging %s into %s...\n', prjFile, outFile);
+        matlab.addons.toolbox.packageToolbox(prjFile, outFile);
+    end
 end

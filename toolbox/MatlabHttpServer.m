@@ -12,6 +12,7 @@ classdef MatlabHttpServer < handle
     properties (Access = private)
         TcpServer % The underlying tcpserver instance
         Router (1,1) mhs.Router
+        StaticHandlers (1,:) cell = {}
 
         % TODO: Clients that connect but never complete a request leave a
         % BufferAccumulator in ClientStates forever. A max-age cleanup 
@@ -39,6 +40,24 @@ classdef MatlabHttpServer < handle
                 controller (1,1) mhs.ApiController
             end
             obj.Router.register(controller);
+        end
+
+        function serveStatic(obj, rootDir, options)
+            % SERVESTATIC Register a directory for static file serving.
+            %   Files are served before API routes. If no file matches the request
+            %   path, the request falls through to registered ApiControllers.
+            %   Multiple calls are checked in registration order.
+            %
+            %   Example:
+            %     server.serveStatic("public/");
+            %     server.serveStatic("docs/", UrlPrefix="/docs/");
+            arguments
+                obj     (1,1) MatlabHttpServer
+                rootDir (1,1) string
+                options.UrlPrefix (1,1) string = "/"
+            end
+            handler = mhs.StaticFileHandler(rootDir, UrlPrefix=options.UrlPrefix);
+            obj.StaticHandlers{end+1} = handler;
         end
 
         function start(obj)
@@ -154,6 +173,14 @@ classdef MatlabHttpServer < handle
                 if strcmpi(req.Method, "OPTIONS")
                     mhs.internal.CorsHandler.handlePreflight(res);
                 else
+                    % Check static handlers before API router
+                    for i = 1:numel(obj.StaticHandlers)
+                        if obj.StaticHandlers{i}.handle(req, res)
+                            return;
+                        end
+                    end
+
+                    % Fall through to API router
                     obj.Router.dispatch(req, res);
                 end
             catch ME

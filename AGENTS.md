@@ -196,6 +196,8 @@ end
 - All HTTP responses **must** use `\r\n` line endings — never `\n` alone
 - Always include `Content-Length` header — do not use chunked transfer encoding
 - Always include CORS headers on **every** response — this is handled in `HttpResponse`, not in controllers
+- Never use `send()` for binary content — use `sendBytes()`. `send()` applies UTF-8 encoding which corrupts images, fonts, and other binary assets.
+- Never use `fileread()` to read files for serving — use `fread` with `'rb'` mode. `fileread` assumes text encoding.
 - `OPTIONS` preflight requests must be handled at the server layer before reaching any controller
 - Connections close after every response — no keep-alive
 - Wrap all `tcpserver` callbacks in `try/catch` — uncaught errors in callbacks are difficult to recover from
@@ -214,6 +216,7 @@ These design decisions are **intentional**. Do not change them without explicit 
 4. **No keep-alive.** Connections close after each response. This dramatically simplifies buffer and state management.
 5. **HTTP/1.1 happy path only.** Chunked encoding, multipart, and HTTP/2 are explicitly out of scope. Document them as limitations, do not implement them.
 6. **`HttpParser` stays private.** It is an implementation detail. Do not expose it in the public API or move it to `+mhs/`.
+7. **Static handlers before API.** Static handlers are checked before the API router in `processRequest`. This order is intentional — do not reverse it.
 
 ---
 
@@ -225,6 +228,8 @@ These design decisions are **intentional**. Do not change them without explicit 
 - Automatic `OPTIONS` preflight handling (in `MatlabHttpServer`)
 - JSON body parsing via `jsondecode` and serialization via `jsonencode`
 - Query string parsing
+- Static file serving via `mhs.StaticFileHandler` and `MatlabHttpServer.serveStatic`
+- Binary file serving via `HttpResponse.sendBytes`
 - `matlab.unittest` test suite for all public classes
 - `GettingStarted.mlx` and examples in `toolbox/examples/`
 - Docker files in `docker/`
