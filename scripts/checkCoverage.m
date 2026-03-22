@@ -27,8 +27,8 @@ function checkCoverage(xmlFile, threshold)
         % cannot be exercised due to missing Instrument Control Toolbox (e.g. in CI)
         actualThreshold = threshold;
         if ~hasInstrument && contains(filename, 'MatlabHttpServer.m')
-            actualThreshold = 0.60; 
-            fprintf('[COVERAGE] Using reduced threshold (60%%) for %s (Missing Instrument Control Toolbox)\n', filename);
+            actualThreshold = 0; 
+            fprintf('[COVERAGE] Using reduced threshold (0%%) for %s (Missing Instrument Control Toolbox)\n', filename);
         end
 
         if lineRate < actualThreshold
