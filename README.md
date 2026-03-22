@@ -5,7 +5,7 @@ A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build RES
 [![MATLAB](https://img.shields.io/badge/MATLAB-R2022b%2B-blue)](https://www.mathworks.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/PVDecker1/matlab-http-server/actions/workflows/ci.yml/badge.svg)](https://github.com/PVDecker1/matlab-http-server/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/PVDecker1/matlab-http-server/graph/badge.svg?token=)](https://codecov.io/gh/PVDecker1/matlab-http-server)
+[![codecov](https://codecov.io/github/PVDecker1/matlab-http-server/graph/badge.svg?token=ZIFZET45CK)](https://codecov.io/github/PVDecker1/matlab-http-server)
 
 ---
 
