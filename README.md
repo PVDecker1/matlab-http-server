@@ -96,8 +96,7 @@ addpath(fullfile(pwd, 'matlab-http-server', 'toolbox'))
 - **StaticSiteExample**: Demonstrates serving a multi-page static website (HTML/CSS) from a local directory. Run with `runStaticSiteExample.m`.
 - **SignalAnalyzer**: A modern React-based dashboard that generates and analyzes signals using MATLAB's computational engine. Run with `runSignalAnalyzer.m`.
 
-![Signal Analyzer](images/signal-analyzer.png)
-<!-- Placeholder: Add real screenshot of Signal Analyzer UI above -->
+![Signal Analyzer](assets/SignalAnalyzer.gif)
 
 ---
 
