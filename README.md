@@ -9,6 +9,17 @@ A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build RES
 
 ---
 
+## Documentation
+
+- [Getting Started](toolbox/doc/getting-started.md)
+- [Routing](toolbox/doc/routing.md)
+- [Request & Response](toolbox/doc/request-response.md)
+- [Static File Serving](toolbox/doc/static-file-serving.md)
+- [Deployment](toolbox/doc/deployment.md)
+- [Contributing](toolbox/doc/contributing.md)
+
+---
+
 ## What It Is
 
 `matlab-http-server` lets you define API endpoints by subclassing `mhs.ApiController` and implementing a `registerRoutes` method. A built-in HTTP server built on `tcpserver` handles the socket layer, parses HTTP/1.1 requests, and dispatches to your registered handlers.
@@ -77,16 +88,15 @@ addpath(fullfile(pwd, 'matlab-http-server', 'toolbox'))
 - MATLAB R2022b or later (`dictionary` introduced in R2022b)
 - No additional toolboxes required for core functionality
 - Parallel Computing Toolbox — optional, for async handler pattern
-- MATLAB Compiler — optional, for MCR/Docker deployment
 
 ### Available Examples
 
 - **BasicExample**: Minimal controller showing basic routing and JSON echo. Run with `runBasicExample.m`.
 - **MultiControllerExample**: Demonstrates registering multiple controllers on one server. Run with `runMultiControllerExample.m`.
+- **StaticSiteExample**: Demonstrates serving a multi-page static website (HTML/CSS) from a local directory. Run with `runStaticSiteExample.m`.
 - **SignalAnalyzer**: A modern React-based dashboard that generates and analyzes signals using MATLAB's computational engine. Run with `runSignalAnalyzer.m`.
 
-![Signal Analyzer](images/signal-analyzer.png)
-<!-- Placeholder: Add real screenshot of Signal Analyzer UI above -->
+![Signal Analyzer](assets/SignalAnalyzer.gif)
 
 ---
 
@@ -200,18 +210,19 @@ Mixed API + static example:
 
 ```matlab
 server = MatlabHttpServer(8080);
-server.serveStatic("public/");
 server.register(MyController()); % handles /api/...
+server.serveStatic("public/");   % serves everything else; falls through to router if no file matches
 server.start();
 ```
 
-See [`toolbox/examples/StaticSiteExample/`](toolbox/examples/StaticSiteExample/) for a runnable demo. For more advanced configurations, see the [Static File Serving Documentation](docs/static-file-serving.md).
+See [`toolbox/examples/StaticSiteExample/`](toolbox/examples/StaticSiteExample/) for a runnable demo. For more advanced configurations, see the
+[Static File Serving Documentation](toolbox/doc/static-file-serving.md).
 
 ---
 
 ## Deployment Models
 
-The same codebase supports several deployment configurations.
+`matlab-http-server` supports two primary deployment configurations.
 
 ### Local — Single User
 Run directly in MATLAB on your local machine. Pair with a React/Vite dev server on a different port for a full local stack. Ideal for personal tools and dashboards.
@@ -222,17 +233,6 @@ Run on a shared machine. Put Nginx or Caddy in front for TLS and routing. MATLAB
 ```
 Caddy (TLS, :443) → matlab-http-server (:8080, localhost only)
 ```
-
-### Docker — Full MATLAB
-Package MATLAB, your controllers, and a reverse proxy into a Docker Compose stack. Requires a valid MATLAB license in the container.
-
-### Docker — MATLAB Runtime (MCR)
-Compile with `mcc` and base your image on the free MATLAB Runtime. No per-host license required. Enables autoscaling in K8s environments.
-
-> ⚠️ **MCR Compatibility:** Metaclass inspection is believed to survive `mcc` compilation but has not been fully validated across all MATLAB versions. CI validation is in progress. See [Known Limitations](#known-limitations).
-
-### Horizontal Scaling (K8s / Autoscaler)
-Deploy multiple MCR-based containers behind a load balancer. Each pod is single-threaded but you scale by multiplying pods. Best suited for stateless handlers. Sticky sessions required if handlers share MATLAB object state across requests.
 
 ---
 
@@ -262,7 +262,7 @@ methods
 end
 ```
 
-> Requires Parallel Computing Toolbox. Not available under MCR.
+> Requires Parallel Computing Toolbox.
 
 ---
 
@@ -278,9 +278,6 @@ These constraints are intentional and documented. `matlab-http-server` is a loca
 | No built-in authentication | Implement in controller `preDispatch` or proxy layer. |
 | No keep-alive | Connections close after each response. |
 | Requires R2021a+ | `tcpserver` introduced in R2021a. |
-| MCR metaclass compatibility unverified | CI validation in progress. See issue #1. |
-| PCT unavailable under MCR | `parfeval`/`backgroundPool` require full MATLAB. |
-| Windows execution policy | Compiled executables may require IT whitelisting on managed machines. Docker recommended for locked-down environments. |
 
 ---
 
@@ -306,30 +303,31 @@ matlab-http-server/
 │   │       HttpResponse.m       % mhs.HttpResponse
 │   │       Router.m             % mhs.Router
 │   │       HttpStatus.m         % mhs.HttpStatus
-│   ├───+mhs/+internal/          % mhs.internal — implementation details, not for end users
-│   │       BufferAccumulator.m
-│   │       RequestParser.m
-│   │       CorsHandler.m
+│   │       StaticFileHandler.m  % mhs.StaticFileHandler
+│   └───+internal/           % mhs.internal — implementation details, not for end users
+│           BufferAccumulator.m
+│           HttpParser.m
+│           CorsHandler.m
 │   ├───doc/
 │   │       GettingStarted.mlx
+│   │       contributing.md
+│   │       deployment.md
+│   │       getting-started.md
+│   │       request-response.md
+│   │       routing.md
+│   │       static-file-serving.md
 │   ├───examples/
 │   │   ├───BasicExample/
 │   │   ├───MultiControllerExample/
-│   │   └───ReactFrontendExample/
+│   │   ├───StaticSiteExample/
+│   │   └───SignalAnalyzer/
 │   └───private/
-│           HttpParser.m
 ├───tests/
 │       TestMatlabHttpServer.m
 │       TestApiController.m
 │       TestHttpRequest.m
 │       TestHttpResponse.m
 │       TestRouter.m
-├───docker/
-│       Dockerfile.full
-│       Dockerfile.mcr
-│       docker-compose.yml
-└───release/
-        matlab-http-server.mltbx  % not under source control
 ```
 
 ---

@@ -49,8 +49,8 @@ classdef MatlabHttpServer < handle
             %   Multiple calls are checked in registration order.
             %
             %   Example:
-            %     server.serveStatic("public/");
-            %     server.serveStatic("docs/", UrlPrefix="/docs/");
+            %     server.serveStatic("doc/");
+            %     server.serveStatic("doc/", UrlPrefix="/documentation/");
             arguments
                 obj     (1,1) MatlabHttpServer
                 rootDir (1,1) string

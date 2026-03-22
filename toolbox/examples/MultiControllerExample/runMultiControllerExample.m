@@ -15,7 +15,7 @@ disp("Endpoints available:");
 disp("  GET  /api/users");
 disp("  GET  /api/admin/status");
 
-if ~usejava('desktop')
+if batchStartupOptionUsed
     disp("Press Ctrl+C to exit.");
     while true
         pause(1);

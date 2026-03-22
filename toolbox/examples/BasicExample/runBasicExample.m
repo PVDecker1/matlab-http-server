@@ -16,7 +16,7 @@ disp("  # Windows CMD (Note: requires escaped double-quotes)");
 disp("  curl http://localhost:8080/api/echo -d ""{\""msg\"":\""hi\""}"" -H ""Content-Type: application/json""");
 
 % Keep MATLAB running if in batch mode
-if ~usejava('desktop')
+if batchStartupOptionUsed
     disp("Press Ctrl+C to exit.");
     while true
         pause(1);

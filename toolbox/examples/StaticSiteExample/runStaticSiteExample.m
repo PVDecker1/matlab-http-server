@@ -34,7 +34,7 @@ fprintf('[matlab-http-server] Navigation between / and /about.html is active.\n'
 fprintf('[matlab-http-server] Press Ctrl+C to stop (or close the MATLAB session).\n');
 
 % 7. Include a loop for non-desktop mode to keep the process alive
-if ~usejava('desktop')
+if batchStartupOptionUsed
     while true
         pause(1);
     end
