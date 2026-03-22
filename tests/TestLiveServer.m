@@ -1,4 +1,4 @@
-classdef TestLiveServer < matlab.unittest.TestCase
+classdef (TestTag = {'RequiresInstrumentControl'}) TestLiveServer < matlab.unittest.TestCase
     % TestLiveServer End-to-end tests using live tcpserver and tcpclient
     %   This test verifies the full stack from socket to controller and back.
 
@@ -9,6 +9,10 @@ classdef TestLiveServer < matlab.unittest.TestCase
 
     methods (TestMethodSetup)
         function startServer(testCase)
+            % Skip these tests if Instrument Control Toolbox is missing (e.g. in CI)
+            testCase.assumeTrue(~isempty(ver('instrument')), ...
+                'Instrument Control Toolbox is required for live server tests.');
+
             testCase.Server = MatlabHttpServer(testCase.Port);
             testCase.Server.register(MockController());
             testCase.Server.start();

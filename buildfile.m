@@ -29,8 +29,16 @@ function testAction(context)
     import matlab.unittest.plugins.CodeCoveragePlugin
     import matlab.unittest.plugins.codecoverage.CoverageReport
     import matlab.unittest.plugins.codecoverage.CoberturaFormat
+    import matlab.unittest.selectors.HasTag
     
     suite = testsuite("tests");
+    
+    % Filter out tests requiring Instrument Control Toolbox if it's not available
+    if isempty(ver("instrument"))
+        fprintf('Instrument Control Toolbox is not available. Filtering out tests tagged "RequiresInstrumentControl".\n');
+        suite = suite.selectIf(~HasTag("RequiresInstrumentControl"));
+    end
+    
     runner = TestRunner.withTextOutput;
     
     covFolder = fullfile("build", "coverage");

@@ -63,43 +63,6 @@ classdef TestMatlabHttpServer < matlab.unittest.TestCase
             testCase.verifyTrue(true);
         end
 
-        function testStartTwice(testCase)
-            server = MatlabHttpServer(8099);
-            server.start();
-            % Should log warning but not throw
-            server.start();
-            server.stop();
-            testCase.verifyTrue(true);
-        end
-
-        function testLiveConnectionCallbacks(testCase)
-            % Test that onConnectionChanged and onDataReceived are called
-            server = MatlabHttpServer(8100);
-            server.register(MockController());
-            server.start();
-            
-            % Use try-finally to ensure server is stopped
-            try
-                t = tcpclient("localhost", 8100);
-                write(t, uint8(['GET /test HTTP/1.1' char(13) char(10) char(13) char(10)]));
-                
-                % Wait for response
-                timeout = 5;
-                timer = tic;
-                while t.NumBytesAvailable == 0 && toc(timer) < timeout
-                    pause(0.1);
-                end
-                
-                testCase.verifyTrue(t.NumBytesAvailable > 0);
-                read(t);
-                delete(t);
-            catch ME
-                server.stop();
-                rethrow(ME);
-            end
-            server.stop();
-        end
-
         function testProcessRequestParserError(testCase)
             server = MatlabHttpServer(8102);
             % This should trigger the inner catch block in processRequest
@@ -143,6 +106,47 @@ classdef TestMatlabHttpServer < matlab.unittest.TestCase
         function testServeStaticWithUrlPrefix(testCase)
             server = MatlabHttpServer(8081);
             testCase.verifyWarningFree(@() server.serveStatic(".", UrlPrefix="/docs/"));
+        end
+    end
+
+    methods (Test, TestTag = {'RequiresInstrumentControl'})
+        function testStartTwice(testCase)
+            testCase.assumeTrue(~isempty(ver('instrument')), 'Instrument Control Toolbox required');
+            server = MatlabHttpServer(8099);
+            server.start();
+            % Should log warning but not throw
+            server.start();
+            server.stop();
+            testCase.verifyTrue(true);
+        end
+
+        function testLiveConnectionCallbacks(testCase)
+            testCase.assumeTrue(~isempty(ver('instrument')), 'Instrument Control Toolbox required');
+            % Test that onConnectionChanged and onDataReceived are called
+            server = MatlabHttpServer(8100);
+            server.register(MockController());
+            server.start();
+            
+            % Use try-finally to ensure server is stopped
+            try
+                t = tcpclient("localhost", 8100);
+                write(t, uint8(['GET /test HTTP/1.1' char(13) char(10) char(13) char(10)]));
+                
+                % Wait for response
+                timeout = 5;
+                timer = tic;
+                while t.NumBytesAvailable == 0 && toc(timer) < timeout
+                    pause(0.1);
+                end
+                
+                testCase.verifyTrue(t.NumBytesAvailable > 0);
+                read(t);
+                delete(t);
+            catch ME
+                server.stop();
+                rethrow(ME);
+            end
+            server.stop();
         end
     end
 end

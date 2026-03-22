@@ -1,6 +1,6 @@
 # matlab-http-server
 
-A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build REST APIs and serve local or team-facing web applications — entirely in MATLAB, no external toolboxes required beyond `tcpserver` (R2021a+) and `dictionary` (R2022b+).
+A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build REST APIs and serve local or team-facing web applications — entirely in MATLAB, requiring only the **Instrument Control Toolbox** (for `tcpserver`) and MATLAB R2022b+ (for `dictionary`).
 
 [![MATLAB](https://img.shields.io/badge/MATLAB-R2022b%2B-blue)](https://www.mathworks.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -86,7 +86,7 @@ addpath(fullfile(pwd, 'matlab-http-server', 'toolbox'))
 ### Requirements
 
 - MATLAB R2022b or later (`dictionary` introduced in R2022b)
-- No additional toolboxes required for core functionality
+- **Instrument Control Toolbox** (required for `tcpserver` functionality)
 - Parallel Computing Toolbox — optional, for async handler pattern
 
 ### Available Examples

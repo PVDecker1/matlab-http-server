@@ -18,7 +18,7 @@ You have two primary ways to install `matlab-http-server`:
 ## Requirements
 
 - **MATLAB R2022b or later**: The framework relies heavily on the `dictionary` type introduced in R2022b.
-- **No Toolboxes Required**: Core functionality works with base MATLAB and the built-in `tcpserver`.
+- **Instrument Control Toolbox**: Required for core networking functionality via `tcpserver`.
 - **Parallel Computing Toolbox (Optional)**: Required if you want to use `parfeval` for non-blocking asynchronous handlers.
 
 ## Your First Controller
