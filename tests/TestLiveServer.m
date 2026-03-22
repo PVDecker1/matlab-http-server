@@ -1,4 +1,4 @@
-classdef (TestTag = {'RequiresInstrumentControl'}) TestLiveServer < matlab.unittest.TestCase
+classdef (TestTags = {'RequiresInstrumentControl'}) TestLiveServer < matlab.unittest.TestCase
     % TestLiveServer End-to-end tests using live tcpserver and tcpclient
     %   This test verifies the full stack from socket to controller and back.
 
