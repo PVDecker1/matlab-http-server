@@ -24,6 +24,12 @@ A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build RES
 
 `matlab-http-server` lets you define API endpoints by subclassing `mhs.ApiController` and implementing a `registerRoutes` method. A built-in HTTP server handles the socket layer, parses HTTP/1.1 requests, serves static assets, and dispatches to your registered handlers.
 
+### Example App
+
+The Signal Analyzer example shows the kind of same-origin frontend + MATLAB backend workflow this project is meant to support.
+
+![Signal Analyzer demo](assets/SignalAnalyzer.gif)
+
 ```matlab
 classdef MyController < mhs.ApiController
     methods
