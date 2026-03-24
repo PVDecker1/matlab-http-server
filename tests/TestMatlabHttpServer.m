@@ -11,6 +11,41 @@ classdef TestMatlabHttpServer < matlab.unittest.TestCase
             testCase.verifyEqual(server2.AllowedOrigin, "http://localhost");
         end
 
+        function testDefaultTransportIsJava(testCase)
+            server = MatlabHttpServer(8081);
+            % Use metaclass to check private property
+            mc = ?MatlabHttpServer;
+            p = mc.PropertyList(strcmp({mc.PropertyList.Name}, 'Transport'));
+            transport = server.(p.Name);
+            testCase.verifyClass(transport, 'mhs.internal.JavaSocketTransport');
+        end
+
+        function testExplicitJavaTransport(testCase)
+            server = MatlabHttpServer(8081, Transport="java");
+            mc = ?MatlabHttpServer;
+            p = mc.PropertyList(strcmp({mc.PropertyList.Name}, 'Transport'));
+            transport = server.(p.Name);
+            testCase.verifyClass(transport, 'mhs.internal.JavaSocketTransport');
+        end
+
+        function testExplicitGoTransport(testCase)
+            try
+                mhs.internal.GoSidecarTransport.findBinary();
+            catch
+                testCase.assumeFail('Go binary not found');
+            end
+            server = MatlabHttpServer(8081, Transport="go");
+            mc = ?MatlabHttpServer;
+            p = mc.PropertyList(strcmp({mc.PropertyList.Name}, 'Transport'));
+            transport = server.(p.Name);
+            testCase.verifyClass(transport, 'mhs.internal.GoSidecarTransport');
+        end
+
+        function testInvalidTransportErrors(testCase)
+            testCase.verifyError(@() MatlabHttpServer(8081, Transport="bogus"), ...
+                'MatlabHttpServer:invalidTransport');
+        end
+
         function testRegister(testCase)
             server = MatlabHttpServer(8081);
             controller = MockController();
@@ -30,12 +65,19 @@ classdef TestMatlabHttpServer < matlab.unittest.TestCase
                   char(13) char(10)];
             rawBytes = uint8(raw)';
 
-            % We can't easily mock the socket's write method here without more complexity,
-            % but calling processRequestForTesting will at least verify HttpParser visibility
-            % and basic dispatch logic.
             server.processRequestForTesting([], rawBytes);
 
             testCase.verifyTrue(true); % Reached here without error
+        end
+
+        function testProcessRequestWithNullSocket(testCase)
+            server = MatlabHttpServer(8081);
+            server.register(MockController());
+            raw = ['GET /test HTTP/1.1' char(13) char(10) char(13) char(10)];
+            rawBytes = uint8(raw)';
+            % Verify it doesn't crash with null socket
+            server.processRequestForTesting([], rawBytes);
+            testCase.verifyTrue(true);
         end
 
         function testProcessRequestBadRequest(testCase)
@@ -66,71 +108,16 @@ classdef TestMatlabHttpServer < matlab.unittest.TestCase
         function testStartTwice(testCase)
             server = MatlabHttpServer(8099);
             server.start();
-            % Should log warning but not throw
+            % Should log warning or just work depending on transport
             server.start();
             server.stop();
             testCase.verifyTrue(true);
-        end
-
-        function testLiveConnectionCallbacks(testCase)
-            % Test that onConnectionChanged and onDataReceived are called
-            server = MatlabHttpServer(8100);
-            server.register(MockController());
-            server.start();
-            
-            % Use try-finally to ensure server is stopped
-            try
-                t = tcpclient("localhost", 8100);
-                write(t, uint8(['GET /test HTTP/1.1' char(13) char(10) char(13) char(10)]));
-                
-                % Wait for response
-                timeout = 5;
-                timer = tic;
-                while t.NumBytesAvailable == 0 && toc(timer) < timeout
-                    pause(0.1);
-                end
-                
-                testCase.verifyTrue(t.NumBytesAvailable > 0);
-                read(t);
-                delete(t);
-            catch ME
-                server.stop();
-                rethrow(ME);
-            end
-            server.stop();
         end
 
         function testProcessRequestParserError(testCase)
             server = MatlabHttpServer(8102);
             % This should trigger the inner catch block in processRequest
-            % by making parse() throw but providing no src to write to.
             server.processRequestForTesting([], uint8('INVALID'));
-            testCase.verifyTrue(true);
-        end
-
-        function testEmptyClientAddress(testCase)
-            server = MatlabHttpServer(8103);
-            src = struct('ClientAddress', []);
-            % Should return early
-            server.callCallbackForTesting("onDataReceived", src, []);
-            testCase.verifyTrue(true);
-        end
-
-        function testOnConnectionChangedError(testCase)
-            server = MatlabHttpServer(8104);
-            % Trigger error by making ClientAddress a non-string that causes failure 
-            % in string() conversion if possible, or just mock it.
-            % Actually, the try-catch is there for robustness.
-            % We can trigger it by making ClientPort something that fails conversion.
-            src = struct('ClientAddress', "127.0.0.1", 'ClientPort', struct());
-            server.callCallbackForTesting("onConnectionChanged", src, []);
-            testCase.verifyTrue(true);
-        end
-
-        function testOnDataReceivedError(testCase)
-            server = MatlabHttpServer(8105);
-            src = struct('ClientAddress', "127.0.0.1", 'ClientPort', struct());
-            server.callCallbackForTesting("onDataReceived", src, []);
             testCase.verifyTrue(true);
         end
 
@@ -143,6 +130,22 @@ classdef TestMatlabHttpServer < matlab.unittest.TestCase
         function testServeStaticWithUrlPrefix(testCase)
             server = MatlabHttpServer(8081);
             testCase.verifyWarningFree(@() server.serveStatic(".", UrlPrefix="/docs/"));
+        end
+
+        function testDeleteReleasesPortForReuse(testCase)
+            port = 8105;
+
+            server1 = MatlabHttpServer(port);
+            server1.start();
+            server1.stop();
+            delete(server1);
+
+            pause(0.2);
+
+            server2 = MatlabHttpServer(port);
+            testCase.verifyWarningFree(@() server2.start());
+            server2.stop();
+            delete(server2);
         end
     end
 end

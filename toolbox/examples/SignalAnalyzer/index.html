@@ -26,7 +26,11 @@
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState(null);
 
-            const API_URL = 'http://localhost:8080/api';
+            const params = new URLSearchParams(window.location.search);
+            const serverPort = params.get('port');
+            const API_URL = serverPort
+                ? `http://localhost:${serverPort}/api`
+                : `${window.location.origin}/api`;
 
             useEffect(() => {
                 fetchStatus();
@@ -38,7 +42,8 @@
                     const data = await resp.json();
                     setStatus(data);
                 } catch (err) {
-                    setError("Could not connect to MATLAB server. Is it running on port 8080?");
+                    const target = serverPort || window.location.origin;
+                    setError(`Could not connect to MATLAB server at ${target}.`);
                 }
             };
 

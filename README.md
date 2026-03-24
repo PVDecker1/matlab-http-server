@@ -1,6 +1,6 @@
 # matlab-http-server
 
-A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build REST APIs and serve local or team-facing web applications — entirely in MATLAB, no external toolboxes required beyond `tcpserver` (R2021a+) and `dictionary` (R2022b+).
+A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build REST APIs and serve local or team-facing web applications entirely in MATLAB. The core goal is base-MATLAB HTTP serving with first-class static file serving, usable both from an open MATLAB session and in headless deployments.
 
 [![MATLAB](https://img.shields.io/badge/MATLAB-R2022b%2B-blue)](https://www.mathworks.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -22,7 +22,7 @@ A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build RES
 
 ## What It Is
 
-`matlab-http-server` lets you define API endpoints by subclassing `mhs.ApiController` and implementing a `registerRoutes` method. A built-in HTTP server built on `tcpserver` handles the socket layer, parses HTTP/1.1 requests, and dispatches to your registered handlers.
+`matlab-http-server` lets you define API endpoints by subclassing `mhs.ApiController` and implementing a `registerRoutes` method. A built-in HTTP server handles the socket layer, parses HTTP/1.1 requests, serves static assets, and dispatches to your registered handlers.
 
 ```matlab
 classdef MyController < mhs.ApiController
@@ -56,28 +56,39 @@ server.start();
 Test it from your terminal:
 
 ```bash
-# General / Linux / macOS / PowerShell (Recommended)
+# General / Linux / macOS / PowerShell (recommended)
 curl http://localhost:8080/api/hello
 curl http://localhost:8080/api/echo -d '{"msg":"hi"}' -H "Content-Type: application/json"
 
-# Windows CMD (Not recommended, requires escaping)
+# Windows CMD (requires escaping)
 curl http://localhost:8080/api/echo -d "{\"msg\":\"hi\"}" -H "Content-Type: application/json"
 ```
 
-No config files, no external dependencies, no MATLAB Production Server license.
+No config files, no external dependencies for core functionality, and no MATLAB Production Server license.
+
+---
+
+## Project Goals
+
+- Run the core server in base MATLAB without Instrument Control Toolbox.
+- Avoid a Parallel Computing Toolbox dependency in the core server layer.
+- Support both interactive use in a running MATLAB session and headless/server deployment.
+- Support both REST APIs and static file serving as first-class features.
+- Keep the Go sidecar transport optional, not required for basic usage.
 
 ---
 
 ## Getting Started
 
-See [`toolbox/doc/GettingStarted.mlx`](toolbox/doc/GettingStarted.mlx) for an interactive walkthrough including a working example with a React frontend.
+Start with the markdown guide at [`toolbox/doc/getting-started.md`](toolbox/doc/getting-started.md).
+An interactive plain-text Live Script source is also available at [`toolbox/doc/GettingStarted.m`](toolbox/doc/GettingStarted.m).
 
 ### Installation
 
-**Option 1 — MATLAB Toolbox (recommended):**
+**Option 1 - MATLAB Toolbox (recommended):**
 Download the latest `.mltbx` from [Releases](https://github.com/PVDecker1/matlab-http-server/releases) and double-click to install.
 
-**Option 2 — Clone and add to path:**
+**Option 2 - Clone and add to path:**
 ```matlab
 git clone https://github.com/PVDecker1/matlab-http-server.git
 addpath(fullfile(pwd, 'matlab-http-server', 'toolbox'))
@@ -85,30 +96,42 @@ addpath(fullfile(pwd, 'matlab-http-server', 'toolbox'))
 
 ### Requirements
 
-- MATLAB R2022b or later (`dictionary` introduced in R2022b)
-- No additional toolboxes required for core functionality
-- Parallel Computing Toolbox — optional, for async handler pattern
+- MATLAB R2022b or later
+- No toolboxes required for core server functionality
+- Go binary (included precompiled in `toolbox/bin/`) required only when using the Go transport
 
-### Available Examples
+---
 
-- **BasicExample**: Minimal controller showing basic routing and JSON echo. Run with `runBasicExample.m`.
-- **MultiControllerExample**: Demonstrates registering multiple controllers on one server. Run with `runMultiControllerExample.m`.
-- **StaticSiteExample**: Demonstrates serving a multi-page static website (HTML/CSS) from a local directory. Run with `runStaticSiteExample.m`.
-- **SignalAnalyzer**: A modern React-based dashboard that generates and analyzes signals using MATLAB's computational engine. Run with `runSignalAnalyzer.m`.
+## Transport Selection
 
-![Signal Analyzer](assets/SignalAnalyzer.gif)
+`matlab-http-server` is designed around transport abstraction. The default path should work in base MATLAB, while the Go sidecar remains available as an explicit opt-in for server-oriented deployments.
+
+```matlab
+% Default transport
+server = MatlabHttpServer(8080);
+
+% Go sidecar transport
+server = MatlabHttpServer(8080, Transport="go");
+```
+
+### Transport Intent
+
+- The default Java transport currently runs as an in-process Java socket server coordinated by a MATLAB timer loop.
+- The project no longer treats `tcpserver` as a core dependency path because it introduces an Instrument Control Toolbox dependency.
+- The core server layer should not require Parallel Computing Toolbox.
+- Async compute patterns inside user handlers may still use Parallel Computing Toolbox when the user opts into that separately.
 
 ---
 
 ## Defining Routes
 
-Override the abstract `registerRoutes` method in your controller subclass and use the provided registration helpers to map HTTP verbs and paths to handler methods. MATLAB will throw a clear error at instantiation time if `registerRoutes` is not implemented.
+Override the abstract `registerRoutes` method in your controller subclass and use the provided registration helpers to map HTTP verbs and paths to handler methods. MATLAB throws a clear error at instantiation time if `registerRoutes` is not implemented.
 
 ```matlab
 methods (Access = protected)
     function registerRoutes(obj)
         obj.get('/api/users',        @obj.getUsers);
-        obj.post('/api/users',        @obj.createUser);
+        obj.post('/api/users',       @obj.createUser);
         obj.get('/api/users/:id',    @obj.getUserById);
         obj.put('/api/users/:id',    @obj.updateUser);
         obj.delete('/api/users/:id', @obj.deleteUser);
@@ -140,7 +163,7 @@ classdef UserController < mhs.ApiController
 
     methods
         function res = getUserById(obj, req, res)
-            id = req.PathParams('id');
+            id = req.PathParams("id");
             res.json(struct('id', id));
         end
     end
@@ -159,7 +182,7 @@ end
 
 ---
 
-## Request & Response
+## Request And Response
 
 Every handler receives an `HttpRequest` and `HttpResponse` object.
 
@@ -175,30 +198,9 @@ res.status(404).send('Not found') % plain text with status
 
 ---
 
-## Multiple Controllers
-
-```matlab
-server = MatlabHttpServer(8080);
-server.register(UserController());    % handles /api/user/...
-server.register(AdminController());   % handles /api/admin/...
-server.start();
-```
-
----
-
-## CORS
-
-CORS headers are handled automatically on every response. `OPTIONS` preflight requests are resolved at the server layer before reaching your controllers. Restrict the allowed origin if needed:
-
-```matlab
-server = MatlabHttpServer(8080, 'AllowedOrigin', 'http://localhost:5173');
-```
-
----
-
 ## Static File Serving
 
-`matlab-http-server` can serve static assets (HTML, CSS, JS, images) from a local directory. Static handlers are checked before the API router, allowing you to host a frontend and an API from the same server.
+Static file serving is part of the framework's intended feature set. `matlab-http-server` can serve HTML, CSS, JS, images, and other assets from a local directory. Static handlers are checked before the API router, allowing a frontend and API to share one MATLAB process.
 
 ```matlab
 server = MatlabHttpServer(8080);
@@ -215,8 +217,28 @@ server.serveStatic("public/");   % serves everything else; falls through to rout
 server.start();
 ```
 
-See [`toolbox/examples/StaticSiteExample/`](toolbox/examples/StaticSiteExample/) for a runnable demo. For more advanced configurations, see the
-[Static File Serving Documentation](toolbox/doc/static-file-serving.md).
+See [`toolbox/examples/StaticSiteExample/`](toolbox/examples/StaticSiteExample/) for a runnable demo and [Static File Serving Documentation](toolbox/doc/static-file-serving.md) for details.
+
+---
+
+## Multiple Controllers
+
+```matlab
+server = MatlabHttpServer(8080);
+server.register(UserController());
+server.register(AdminController());
+server.start();
+```
+
+---
+
+## CORS
+
+CORS headers are handled automatically on every response. `OPTIONS` preflight requests are resolved at the server layer before reaching your controllers. Restrict the allowed origin if needed:
+
+```matlab
+server = MatlabHttpServer(8080, AllowedOrigin="http://localhost:5173");
+```
 
 ---
 
@@ -224,27 +246,29 @@ See [`toolbox/examples/StaticSiteExample/`](toolbox/examples/StaticSiteExample/)
 
 `matlab-http-server` supports two primary deployment configurations.
 
-### Local — Single User
-Run directly in MATLAB on your local machine. Pair with a React/Vite dev server on a different port for a full local stack. Ideal for personal tools and dashboards.
+### Local - Single User
 
-### Centralized — Small Team
-Run on a shared machine. Put Nginx or Caddy in front for TLS and routing. MATLAB handles computation, the proxy handles infrastructure.
+Run directly in an open MATLAB session on your local machine. Pair with a React/Vite dev server on a different port for a full local stack.
 
-```
-Caddy (TLS, :443) → matlab-http-server (:8080, localhost only)
+### Centralized - Small Team
+
+Run on a shared machine in a headless or service-style deployment. Put Nginx or Caddy in front for TLS and routing while MATLAB handles application logic.
+
+```text
+Caddy (TLS, :443) -> matlab-http-server (:8080, localhost only)
 ```
 
 ---
 
 ## Async Handlers
 
-For compute-heavy handlers that would block the server, use `parfeval` with a polling pattern:
+For compute-heavy handlers, keep the async pattern outside the core server contract. User-defined handlers may opt into `parfeval` or other asynchronous approaches when the deployment environment supports them.
 
 ```matlab
 methods (Access = protected)
     function registerRoutes(obj)
-        obj.post('/api/simulate',     @obj.startSimulation);
-        obj.get('/api/jobs/status',   @obj.getJobStatus);
+        obj.post('/api/simulate',   @obj.startSimulation);
+        obj.get('/api/jobs/status', @obj.getJobStatus);
     end
 end
 
@@ -256,28 +280,28 @@ methods
     end
 
     function res = getJobStatus(obj, req, res)
-        result = obj.pollFuture(req.QueryParams('id'));
+        result = obj.pollFuture(req.QueryParams("id"));
         res.json(result);
     end
 end
 ```
 
-> Requires Parallel Computing Toolbox.
+This pattern is optional and is not part of the core server's dependency contract.
 
 ---
 
 ## Known Limitations
 
-These constraints are intentional and documented. `matlab-http-server` is a local and small-team tooling framework, not a general-purpose production web server.
+These constraints are intentional. `matlab-http-server` is a lightweight HTTP framework for local tools, internal apps, and small-team services, not a general-purpose production web server.
 
 | Limitation | Notes |
 |---|---|
-| Single-threaded request handling | Requests are sequential. Use async handler pattern for long jobs. |
+| Single-threaded request handling | Requests are sequential unless a transport implementation explicitly offloads accept/work handling. |
 | HTTP/1.1 happy path only | No chunked encoding, multipart, or HTTP/2. |
 | No TLS | Use Nginx or Caddy as a reverse proxy. |
-| No built-in authentication | Implement in controller `preDispatch` or proxy layer. |
+| No built-in authentication | Implement in controller `preDispatch` or a proxy layer. |
 | No keep-alive | Connections close after each response. |
-| Requires R2021a+ | `tcpserver` introduced in R2021a. |
+| Requires R2022b+ | New code relies on `dictionary` support. |
 
 ---
 
@@ -285,49 +309,41 @@ These constraints are intentional and documented. `matlab-http-server` is a loca
 
 Follows [MathWorks Toolbox Best Practices](https://github.com/mathworks/toolboxdesign) and [MATLAB Coding Guidelines](https://github.com/mathworks/MATLAB-Coding-Guidelines).
 
-```
+```text
 matlab-http-server/
-│   README.md
-│   LICENSE
-│   matlab-http-server.prj       % MATLAB Project + toolbox packaging (R2025a+)
-│   buildfile.m                  % buildtool automation
-│   .gitignore
-│   .gitattributes
-├───images/
-│       matlab-http-server.png
-├───toolbox/
-│   │   MatlabHttpServer.m       % primary entry point — no namespace, used directly
-│   ├───+mhs/                    % mhs namespace — all user-facing framework classes
-│   │       ApiController.m      % mhs.ApiController — users inherit from this
-│   │       HttpRequest.m        % mhs.HttpRequest
-│   │       HttpResponse.m       % mhs.HttpResponse
-│   │       Router.m             % mhs.Router
-│   │       HttpStatus.m         % mhs.HttpStatus
-│   │       StaticFileHandler.m  % mhs.StaticFileHandler
-│   └───+internal/           % mhs.internal — implementation details, not for end users
-│           BufferAccumulator.m
-│           HttpParser.m
-│           CorsHandler.m
-│   ├───doc/
-│   │       GettingStarted.mlx
-│   │       contributing.md
-│   │       deployment.md
-│   │       getting-started.md
-│   │       request-response.md
-│   │       routing.md
-│   │       static-file-serving.md
-│   ├───examples/
-│   │   ├───BasicExample/
-│   │   ├───MultiControllerExample/
-│   │   ├───StaticSiteExample/
-│   │   └───SignalAnalyzer/
-│   └───private/
-├───tests/
-│       TestMatlabHttpServer.m
-│       TestApiController.m
-│       TestHttpRequest.m
-│       TestHttpResponse.m
-│       TestRouter.m
+|   README.md
+|   LICENSE
+|   matlab-http-server.prj
+|   buildfile.m
+|   .gitignore
+|   .gitattributes
++---images/
++---toolbox/
+|   |   MatlabHttpServer.m
+|   +---+mhs/
+|   |       ApiController.m
+|   |       HttpRequest.m
+|   |       HttpResponse.m
+|   |       Router.m
+|   |       HttpStatus.m
+|   |       StaticFileHandler.m
+|   +---+mhs/+internal/
+|   |       BufferAccumulator.m
+|   |       HttpParser.m
+|   |       CorsHandler.m
+|   +---doc/
+|   |       contributing.md
+|   |       deployment.md
+|   |       getting-started.md
+|   |       request-response.md
+|   |       routing.md
+|   |       static-file-serving.md
+|   +---examples/
+|   |   +---BasicExample/
+|   |   +---MultiControllerExample/
+|   |   +---SignalAnalyzer/
+|   |   +---StaticSiteExample/
++---tests/
 ```
 
 ---
@@ -335,18 +351,19 @@ matlab-http-server/
 ## Contributing
 
 Tests are required for all new functionality. Run tests before submitting:
+
 ```matlab
-buildtool test   % runs tests + coverage report
-buildtool ci     % full pipeline: check + test + package
+buildtool test
+buildtool ci
 ```
 
-See [AGENTS.md](AGENTS.md) for architecture details, coding conventions, and guidance for AI coding agents working on this codebase.
+See [AGENTS.md](AGENTS.md) for architecture details, coding conventions, and agent-specific guidance.
 
 ---
 
 ## Inspiration
 
-`matlab-http-server` fills a gap in the MATLAB ecosystem. MathWorks' official HTTP tooling is client-only (`matlab.net.http`) or requires expensive licensed server products. With Java interop being deprecated in newer MATLAB releases, a native `tcpserver`-based solution built on modern OOP patterns is the right path forward.
+`matlab-http-server` fills a gap in the MATLAB ecosystem. MathWorks provides strong HTTP client tooling, but lightweight server-side HTTP remains awkward without additional products or external infrastructure. This project aims to provide a portable framework for MATLAB-based web services while keeping the core runtime dependency story simple.
 
 The routing pattern is inspired by Flask and draws on the same metaclass inspection technique used internally by `matlab.unittest` for test discovery.
 
@@ -354,4 +371,4 @@ The routing pattern is inspired by Flask and draws on the same metaclass inspect
 
 ## License
 
-MIT © 2026
+MIT (c) 2026

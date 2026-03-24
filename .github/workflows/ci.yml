@@ -8,11 +8,46 @@ on:
     branches: [ main ]
 
 jobs:
+  build-go:
+    name: Build Go Sidecar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: Build Go sidecars
+        run: |
+          cd sidecar
+          mkdir -p ../toolbox/bin/win64
+          mkdir -p ../toolbox/bin/glnxa64
+          mkdir -p ../toolbox/bin/maci64
+          mkdir -p ../toolbox/bin/maca64
+          GOOS=windows GOARCH=amd64 go build -o ../toolbox/bin/win64/matlab-http-bridge.exe .
+          GOOS=linux GOARCH=amd64 go build -o ../toolbox/bin/glnxa64/matlab-http-bridge .
+          GOOS=darwin GOARCH=amd64 go build -o ../toolbox/bin/maci64/matlab-http-bridge .
+          GOOS=darwin GOARCH=arm64 go build -o ../toolbox/bin/maca64/matlab-http-bridge .
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: matlab-http-bridge-binaries
+          path: toolbox/bin/
+
   test:
+    needs: build-go
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: matlab-http-bridge-binaries
+          path: toolbox/bin/
+
+      - name: Make Linux binary executable
+        run: chmod +x toolbox/bin/glnxa64/matlab-http-bridge
 
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v2
@@ -45,6 +80,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: matlab-http-bridge-binaries
+          path: toolbox/bin/
 
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v2

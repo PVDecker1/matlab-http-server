@@ -95,7 +95,7 @@ classdef TestHttpResponse < matlab.unittest.TestCase
         end
 
         function testCustomAllowedOrigin(testCase)
-            res = mhs.HttpResponse([], "http://localhost:3000");
+            res = mhs.HttpResponse("http://localhost:3000");
             res.send("");
             [~, hdrs, ~] = res.getRawResponseForTesting();
             testCase.verifyEqual(hdrs("Access-Control-Allow-Origin"), "http://localhost:3000");

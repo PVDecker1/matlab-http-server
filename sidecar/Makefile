@@ -1,0 +1,13 @@
+build-windows:
+	GOOS=windows GOARCH=amd64 go build -o ../toolbox/bin/win64/matlab-http-bridge.exe ./...
+
+build-linux:
+	GOOS=linux GOARCH=amd64 go build -o ../toolbox/bin/glnxa64/matlab-http-bridge ./...
+
+build-mac-intel:
+	GOOS=darwin GOARCH=amd64 go build -o ../toolbox/bin/maci64/matlab-http-bridge ./...
+
+build-mac-arm:
+	GOOS=darwin GOARCH=arm64 go build -o ../toolbox/bin/maca64/matlab-http-bridge ./...
+
+build-all: build-windows build-linux build-mac-intel build-mac-arm

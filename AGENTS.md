@@ -1,45 +1,64 @@
-# AGENTS.md — matlab-http-server
+# AGENTS.md - matlab-http-server
 
-This file provides guidance for AI coding agents (Jules, Claude, Copilot, etc.) working on this codebase. Read this entire file before making any changes.
+This file provides guidance for AI coding agents working on this codebase. Read this entire file before making changes.
 
 ---
 
 ## What This Project Is
 
-`matlab-http-server` is a zero-dependency HTTP server framework for MATLAB. Developers define REST API endpoints by subclassing `mhs.ApiController`, implementing the abstract `registerRoutes` method to map paths to handlers, and defining handler methods. A `tcpserver`-based HTTP layer parses incoming requests and dispatches to registered handlers.
+`matlab-http-server` is a zero-dependency HTTP server framework for MATLAB. It is intended to support both REST APIs and static file serving in base MATLAB, with an optional Go sidecar transport for server-oriented deployments.
 
-**The core pattern:** Subclass `mhs.ApiController`, override `registerRoutes`, register handlers using `obj.get()`, `obj.post()` etc., implement handlers with signature `res = myHandler(obj, req, res)`.
+Developers define endpoints by subclassing `mhs.ApiController`, implementing the abstract `registerRoutes` method, and writing handler methods with the signature `res = myHandler(obj, req, res)`.
+
+The project goal is to provide HTTP serving in MATLAB without depending on Instrument Control Toolbox or Parallel Computing Toolbox for core server functionality.
 
 ---
 
 ## Architecture Overview
 
-```
+```text
 MatlabHttpServer
-    └── tcpserver (R2021a+)
-        ├── ConnectionChangedFcn → onConnect()
-        └── Data callback → onData()
-            └── mhs.internal.HttpParser.parse()
-                ├── parseRequestLine()
-                ├── parseHeaders()
-                └── parseBody()
-                    └── Router.dispatch(HttpRequest, HttpResponse)
-                        └── ApiController subclass
-                            └── res = handlerMethod(obj, req, res)
-                                └── HttpResponse.write()
+    -> mhs.internal.TcpTransport (abstract)
+        -> JavaSocketTransport
+           Default/base-MATLAB transport path for interactive use
+           Implemented with java.net sockets and a MATLAB timer loop
+        -> GoSidecarTransport
+           Optional opt-in transport for headless/server use
+            -> mhs.internal.HttpParser.parse()
+                -> parseRequestLine()
+                -> parseHeaders()
+                -> parseBody()
+                    -> Router.dispatch(HttpRequest, HttpResponse)
+                        -> ApiController subclass
+                            -> res = handlerMethod(obj, req, res)
+                                -> TcpTransport.writeResponse()
 ```
+
+### Transport Layer
+
+| Transport | Implementation | Use Case |
+|---|---|---|
+| `JavaSocketTransport` | `java.net.ServerSocket` plus a MATLAB timer loop | Default. Base MATLAB. Interactive use, demos, desktop tooling. |
+| `GoSidecarTransport` | Go binary over stdin/stdout | Optional opt-in. Headless use, server deployments, higher-load scenarios. |
+
+### Transport Constraints
+
+- Do not introduce `tcpserver` as a core transport dependency path unless the toolbox dependency tradeoff is explicitly revisited.
+- Do not require Parallel Computing Toolbox in the core server layer.
+- If async/offloading behavior is needed inside a transport, document clearly whether it relies only on base MATLAB features.
+- User-defined handlers may opt into extra toolboxes, but the framework core must not require them.
 
 ### Key Classes
 
 | Class | File | Responsibility |
 |---|---|---|
-| `MatlabHttpServer` | `toolbox/MatlabHttpServer.m` | Primary entry point. No namespace — used directly. Owns `tcpserver`, manages connection lifecycle, feeds raw bytes to `HttpParser` |
-| `mhs.ApiController` | `toolbox/+mhs/ApiController.m` | Abstract base class users inherit from. Provides `obj.get()`, `obj.post()` etc. Declares abstract `registerRoutes`. Calls `registerRoutes` in constructor. |
-| `mhs.HttpRequest` | `toolbox/+mhs/HttpRequest.m` | Value class. Holds parsed method, path, headers, body, query params, path params. Uses `dictionary`. |
-| `mhs.HttpResponse` | `toolbox/+mhs/HttpResponse.m` | Builder-style handle class. Writes HTTP response back to socket. Uses `dictionary`. |
-| `mhs.Router` | `toolbox/+mhs/Router.m` | Aggregates multiple `mhs.ApiController` instances, dispatches by path |
-| `mhs.HttpStatus` | `toolbox/+mhs/HttpStatus.m` | Named HTTP status code constants |
-| `mhs.internal.HttpParser`| `toolbox/+mhs/+internal/HttpParser.m` | Internal. Parses raw `uint8` buffer into `mhs.HttpRequest`. Not part of public API. |
+| `MatlabHttpServer` | `toolbox/MatlabHttpServer.m` | Primary entry point. Owns a `TcpTransport`, manages connection events. |
+| `mhs.internal.TcpTransport` | `toolbox/+mhs/+internal/TcpTransport.m` | Abstract base class for network implementations. |
+| `mhs.ApiController` | `toolbox/+mhs/ApiController.m` | Abstract base class users inherit from. Provides route registration helpers. |
+| `mhs.HttpRequest` | `toolbox/+mhs/HttpRequest.m` | Value class holding parsed request data. |
+| `mhs.HttpResponse` | `toolbox/+mhs/HttpResponse.m` | Builder-style handle class for formulating responses. |
+| `mhs.Router` | `toolbox/+mhs/Router.m` | Matches requests to controller handlers. |
+| `mhs.internal.HttpParser` | `toolbox/+mhs/+internal/HttpParser.m` | Parses raw bytes into `mhs.HttpRequest`. |
 
 ---
 
@@ -47,111 +66,97 @@ MatlabHttpServer
 
 This project follows [MathWorks Toolbox Best Practices](https://github.com/mathworks/toolboxdesign) and [MATLAB Coding Guidelines](https://github.com/mathworks/MATLAB-Coding-Guidelines).
 
-```
+```text
 matlab-http-server/
-│   README.md
-│   LICENSE
-│   matlab-http-server.prj   % MATLAB Project + packaging file (R2025a+)
-│   buildfile.m              % buildtool tasks
-│   .gitignore
-│   .gitattributes
-├───images/
-├───toolbox/                 % All distributable code lives here — nothing else
-│   │   MatlabHttpServer.m   % primary entry point — no namespace
-│   ├───+mhs/                % mhs namespace — all user-facing framework classes
-│   │       ApiController.m  % mhs.ApiController — users inherit from this
-│   │       HttpRequest.m    % mhs.HttpRequest
-│   │       HttpResponse.m   % mhs.HttpResponse
-│   │       Router.m         % mhs.Router
-│   │       HttpStatus.m     % mhs.HttpStatus
-│   ├───+mhs/+internal/      % mhs.internal — not for end users
-│   │       BufferAccumulator.m
-│   │       HttpParser.m
-│   │       CorsHandler.m
-│   ├───doc/
-│   │       GettingStarted.mlx
-│   │       contributing.md
-│   │       deployment.md
-│   │       getting-started.md
-│   │       request-response.md
-│   │       routing.md
-│   │       static-file-serving.md
-│   ├───examples/
-│   │   ├───BasicExample/
-│   │   │       BasicController.m
-│   │   │       runBasicExample.m
-│   │   ├───MultiControllerExample/
-│   │   │       AdminController.m
-│   │   │       UserController.m
-│   │   │       runMultiControllerExample.m
-│   │   └───SignalAnalyzer/
-│   │           SignalProcessor.m
-│   │           index.html
-│   │           runSignalAnalyzer.m
-│   └───private/
-├───tests/                   % Tests live here, NOT in toolbox/
-└───build/                   % Build artifacts (gitignored)
+|   README.md
+|   LICENSE
+|   matlab-http-server.prj
+|   buildfile.m
+|   .gitignore
+|   .gitattributes
++---assets/
++---resources/
++---scripts/
++---sidecar/
++---toolbox/
+|   |   MatlabHttpServer.m
+|   +---+mhs/
+|   |       ApiController.m
+|   |       HttpRequest.m
+|   |       HttpResponse.m
+|   |       Router.m
+|   |       HttpStatus.m
+|   |       StaticFileHandler.m
+|   +---+mhs/+internal/
+|   |       BufferAccumulator.m
+|   |       HttpParser.m
+|   |       CorsHandler.m
+|   |       TcpTransport.m
+|   |       JavaSocketTransport.m
+|   |       GoSidecarTransport.m
+|   +---doc/
+|   |       contributing.md
+|   |       deployment.md
+|   |       getting-started.md
+|   |       request-response.md
+|   |       routing.md
+|   |       static-file-serving.md
+|   +---examples/
+|   |   +---BasicExample/
+|   |   +---MultiControllerExample/
+|   |   +---SignalAnalyzer/
+|   |   +---StaticSiteExample/
++---tests/
 ```
 
-**Critical:** Only code in `toolbox/` is distributed to users. Tests, docker files, and build utilities are never in `toolbox/`.
+Only code in `toolbox/` is distributed to end users. Tests, sidecar sources, build utilities, and project metadata are not distributed as toolbox runtime code.
 
 ---
 
 ## Coding Conventions
 
-Follow the [MATLAB Coding Guidelines](https://github.com/mathworks/MATLAB-Coding-Guidelines) for all new code. Key rules:
+Follow the [MATLAB Coding Guidelines](https://github.com/mathworks/MATLAB-Coding-Guidelines) for all new code.
 
 ### General
-- All classes use `classdef ... < handle` unless it is a pure value type
-- Value classes (`HttpRequest`) use plain `classdef` (no superclass)
-- Use `arguments` blocks for all public method input validation — do not use manual `narginchk`/`validateattributes`
-- All `error()` calls must use a two-part identifier string in the format "ClassName:ErrorType" (e.g. "HttpParser:InvalidJson"). Plain string error messages without identifiers are not acceptable in framework code.
-- Prefer `string` type over `char` for new code — be explicit at type boundaries using `string()` or `char()`
-- **Use `dictionary` instead of `containers.Map`** for all new mapping needs (requires R2022b+)
-- Every public function and class must have a help comment block immediately after the definition line
-- No magic numbers — use named constants or descriptive variables
-- Minimal MATLAB version: R2022b (for `dictionary` support)
+
+- All classes use `classdef ... < handle` unless they are pure value types.
+- Value classes like `HttpRequest` use plain `classdef`.
+- Use `arguments` blocks for public method input validation instead of manual `narginchk` or `validateattributes`.
+- All `error()` calls must use a two-part identifier string such as `"HttpParser:InvalidJson"`.
+- Prefer `string` over `char` for new code, and be explicit at type boundaries.
+- Use `dictionary` instead of `containers.Map` for new mapping needs.
+- Every public function and class must have a help comment block immediately after the definition line.
+- No magic numbers; use named constants or descriptive variables.
+- Minimal MATLAB version is R2022b.
 
 ### Naming
-- Classes: `PascalCase` (e.g. `MatlabHttpServer`)
-- Properties: `PascalCase` (e.g. `obj.Port`, `obj.Routes`)
-- Public methods: `camelCase` (e.g. `obj.dispatch()`, `obj.register()`)
-- Private helpers: `camelCase` in `methods (Access = private)` blocks
-- Test classes: `Test<ClassName>.m` (e.g. `TestApiController.m`)
-- Test methods: must use `Test` attribute — e.g. `methods (Test)`
 
-### Namespaces (`+` Folders)
+- Classes: `PascalCase`
+- Properties: `PascalCase`
+- Public methods: `camelCase`
+- Private helpers: `camelCase`
+- Test classes: `Test<ClassName>.m`
 
-Use MATLAB namespaces (package folders prefixed with `+`) to organize code and avoid name collisions. This project uses the following namespace structure:
+### Namespaces
 
-- **`MatlabHttpServer`** stays at the root of `toolbox/` with no namespace — it is the primary entry point and called directly, consistent with how MATLAB built-ins like `tcpserver` work.
-- **`+mhs/` namespace** — all user-facing framework classes that users interact with by name. Users inherit from `mhs.ApiController`, receive `mhs.HttpRequest` and `mhs.HttpResponse` objects, etc. This mirrors the pattern of `matlab.unittest.TestCase`, `matlab.apps.AppBase`, and other MathWorks frameworks.
-- **`+mhs/+internal/` namespace** — implementation details not intended for end users. The full qualified name `mhs.internal.X` signals clearly this is internal code.
+- `MatlabHttpServer` stays at the root of `toolbox/` with no namespace.
+- User-facing framework classes belong under `toolbox/+mhs/`.
+- Internal implementation details belong under `toolbox/+mhs/+internal/`.
+- Do not create new top-level namespaces.
 
-```matlab
-% Users write this — feels native, consistent with MathWorks conventions
-classdef MyController < mhs.ApiController
-    ...
-end
-```
+---
 
-When adding new functionality: primary framework classes users subclass or interact with go in `+mhs/`. Implementation details go in `+mhs/+internal/`. Do not add new classes to the root `toolbox/` level — `MatlabHttpServer` is the only intentional exception.
+## Route Registration
 
-Do not create new top-level namespaces. All new namespace code belongs under `+mhs/`.
+Routes are registered by overriding the abstract `registerRoutes` method. It is called automatically by the `ApiController` constructor. MATLAB should fail clearly at instantiation if `registerRoutes` is not implemented.
 
-### Route Registration
-
-Routes are registered by overriding the abstract `registerRoutes` method. This method is called automatically by the `ApiController` constructor. MATLAB will throw an error at instantiation if it is not implemented — this is intentional and desirable.
-
-**Warning: Route Ordering Hazard.** Routes are matched in registration order. Specific routes (e.g. `/api/users/me`) must be registered BEFORE parameterized routes (e.g. `/api/users/:id`) that would otherwise shadow them.
+Routes are matched in registration order. Specific routes must be registered before parameterized routes that could shadow them.
 
 ```matlab
 methods (Access = protected)
     function registerRoutes(obj)
-        % Correct ordering: specific before general
         obj.get('/api/users/me',     @obj.getMe);
         obj.get('/api/users/:id',    @obj.getUserById);
-        
         obj.get('/api/users',        @obj.getUsers);
         obj.post('/api/users',       @obj.createUser);
         obj.put('/api/users/:id',    @obj.updateUser);
@@ -160,11 +165,11 @@ methods (Access = protected)
 end
 ```
 
-Available registration helpers on `ApiController`: `obj.get()`, `obj.post()`, `obj.put()`, `obj.delete()`, `obj.patch()`. Do not add other HTTP verbs without discussion.
+Available helpers are `obj.get()`, `obj.post()`, `obj.put()`, `obj.delete()`, and `obj.patch()`.
 
 ### Path Parameters
 
-Use `:param` syntax in route paths. Parameters are extracted by the router and available via `req.PathParams`:
+Use `:param` syntax in route paths. Parameters are available via `req.PathParams`.
 
 ```matlab
 function res = getUserById(obj, req, res)
@@ -175,54 +180,44 @@ end
 
 ### Handler Signature
 
-All handler methods **must** declare `res` as both an input and output argument. Do not rely on handle mutation alone — returning `res` explicitly makes data flow clear and avoids aliasing issues near concurrent execution.
-
-It is idiomatic to use the `~` receiver pattern for `obj` and/or `req` if they are not used in the handler:
+All handler methods must declare `res` as both input and output.
 
 ```matlab
-% obj and req not needed
-function res = getStatus(~, ~, res)
-    res.json(struct('status', 'ok'));
-end
-```
-
-```matlab
-% Correct
 function res = getUsers(obj, req, res)
     res.json(struct('users', []));
 end
-
-% Wrong — missing output argument
-function getUsers(obj, req, res)
-    res.json(struct('users', []));
-end
 ```
 
-### HTTP Layer Rules
-- All HTTP responses **must** use `\r\n` line endings — never `\n` alone
-- Always include `Content-Length` header — do not use chunked transfer encoding
-- Always include CORS headers on **every** response — this is handled in `HttpResponse`, not in controllers
-- Never use `send()` for binary content — use `sendBytes()`. `send()` applies UTF-8 encoding which corrupts images, fonts, and other binary assets.
-- Never use `fileread()` to read files for serving — use `fread` with `'rb'` mode. `fileread` assumes text encoding.
-- `OPTIONS` preflight requests must be handled at the server layer before reaching any controller
-- Connections close after every response — no keep-alive
-- Wrap all `tcpserver` callbacks in `try/catch` — uncaught errors in callbacks are difficult to recover from
-- Return proper HTTP error responses (400, 404, 500) — never throw to the caller
-- Log errors to Command Window with prefix: `[matlab-http-server ERROR]`
+If `obj` or `req` are unused, `~` is idiomatic.
+
+---
+
+## HTTP Layer Rules
+
+- All HTTP responses must use `\r\n` line endings.
+- Always include `Content-Length`; do not use chunked transfer encoding.
+- Always include CORS headers on every response. This belongs in `HttpResponse`, not controllers.
+- Never use `send()` for binary content; use `sendBytes()`.
+- Never use `fileread()` for static assets; use binary-safe file reads.
+- `OPTIONS` preflight requests must be handled at the server layer before reaching controllers.
+- Connections close after every response; no keep-alive.
+- Wrap transport callbacks in `try/catch`.
+- Return proper HTTP error responses instead of throwing to the caller.
+- Log errors to the Command Window with the prefix `[matlab-http-server ERROR]`.
 
 ---
 
 ## What To Preserve
 
-These design decisions are **intentional**. Do not change them without explicit discussion:
+These design decisions are intentional.
 
-1. **Zero external dependencies.** No Python, no Node, no Java. Only MATLAB built-ins, `tcpserver`, and `dictionary`. This is a core feature and selling point.
-2. **Metaclass-based routing.** Routes are discovered automatically via `metaclass()` and `meta.method`. Do not replace this with a manual registration API.
-3. **One class per file.** Each class lives in its own `.m` file. Do not consolidate.
-4. **No keep-alive.** Connections close after each response. This dramatically simplifies buffer and state management.
-5. **HTTP/1.1 happy path only.** Chunked encoding, multipart, and HTTP/2 are explicitly out of scope. Document them as limitations, do not implement them.
-6. **`HttpParser` stays private.** It is an implementation detail. Do not expose it in the public API or move it to `+mhs/`.
-7. **Static handlers before API.** Static handlers are checked before the API router in `processRequest`. This order is intentional — do not reverse it.
+1. Zero external dependencies for core functionality.
+2. Transport abstraction through `mhs.internal.TcpTransport`.
+3. Default transport path should work in base MATLAB.
+4. Go transport is explicit opt-in.
+5. Static file serving is in scope and should remain a first-class feature.
+6. `processRequestForTesting` should continue to bypass transport for unit testing.
+7. Do not reintroduce Instrument Control Toolbox or Parallel Computing Toolbox as core runtime dependencies.
 
 ---
 
@@ -230,78 +225,74 @@ These design decisions are **intentional**. Do not change them without explicit 
 
 - Core server: `MatlabHttpServer`, `HttpParser`, `HttpRequest`, `HttpResponse`, `Router`
 - `ApiController` base class with metaclass routing
-- Automatic CORS header injection (in `HttpResponse`)
-- Automatic `OPTIONS` preflight handling (in `MatlabHttpServer`)
-- JSON body parsing via `jsondecode` and serialization via `jsonencode`
+- Automatic CORS header injection
+- Automatic `OPTIONS` preflight handling
+- JSON parsing and serialization
 - Query string parsing
 - Static file serving via `mhs.StaticFileHandler` and `MatlabHttpServer.serveStatic`
 - Binary file serving via `HttpResponse.sendBytes`
-- `matlab.unittest` test suite for all public classes
-- `GettingStarted.mlx` and markdown documentation in `toolbox/doc/`
+- Java and Go transport implementations under the transport abstraction
+- `matlab.unittest` test coverage for public classes
+- Documentation in `toolbox/doc/`
 - Examples in `toolbox/examples/`
-- `buildfile.m` for `buildtool` automation (test, package, release tasks)
+- `buildfile.m` automation
 
 ## What Is Out Of Scope
 
-Do not implement these without opening an issue and getting approval first:
+Do not implement these without explicit discussion:
 
-- TLS/HTTPS (use a reverse proxy — Nginx, Caddy)
-- Authentication (implement in controller `preDispatch` hook or proxy layer)
+- TLS/HTTPS
+- Built-in authentication
 - Chunked transfer encoding
 - Multipart form data
 - HTTP/2
 - WebSockets
-- Static file serving
-- Parallel Computing Toolbox integration in the core server layer (optional pattern only, in user-defined handlers)
 - Docker and MCR deployment configuration
-- Kubernetes / horizontal scaling configuration
+- Kubernetes and horizontal scaling configuration
 - MATLAB Compiler (`mcc`) integration in the core framework
 
 ---
 
-## Open Questions / Known Risks
+## Known Risks
 
-Do not assume these are resolved. Do not write code that depends on them until validated:
-
-1. **`tcpserver` partial reads** — TCP does not guarantee a full HTTP request arrives in one callback invocation. Buffer accumulation in `MatlabHttpServer` must handle partial reads correctly. This is the most likely source of intermittent bugs — test it thoroughly.
-
-2. **`tcpserver` thread safety** — Callbacks run on MATLAB's main thread. Do not introduce `parfeval` or `backgroundPool` into the core server layer. Async patterns belong in user-defined controller methods only.
+1. Partial reads: TCP does not guarantee a full HTTP request arrives in one callback. Buffer accumulation must handle partial reads correctly.
+2. Threading model: Do not assume callbacks are safe to parallelize in the core server layer.
+3. Dependency drift: Be careful not to accidentally reintroduce Instrument Control Toolbox or Parallel Computing Toolbox through transport changes.
 
 ---
 
 ## Testing
 
-All public classes require `matlab.unittest` tests in `tests/`. Tests must not require a live `tcpserver` — mock or stub the socket layer where possible. HTTP parsing tests use raw byte string inputs, not live connections.
+All public classes require `matlab.unittest` tests in `tests/`. Tests should not require a live socket unless a specific transport integration scenario is being exercised deliberately.
 
-Run the full suite:
+Run the full suite with:
+
 ```matlab
 results = runtests('tests/');
 table(results)
 ```
 
-CI runs automatically on every push via GitHub Actions using a MATLAB licensed runner. Do not merge code that breaks CI.
+CI runs automatically on every push via GitHub Actions using a MATLAB licensed runner.
 
 ---
 
-## Build & CI
+## Build And CI
 
-- The project uses `buildtool` with `buildfile.m` at the project root.
-- Default task is `test`. Full pipeline is `buildtool ci`.
-- Coverage threshold is 90% per file (line coverage).
-- Coverage is enforced by `scripts/checkCoverage.m` called from `buildfile.m` after the test task.
-- CI runs on GitHub Actions via `.github/workflows/ci.yml`.
-- Toolbox is packaged automatically on push to main and on `v*` tags.
-- Releases are created automatically on `v*` tags.
+- The project uses `buildtool` with `buildfile.m`.
+- Default task is `test`.
+- Full pipeline is `buildtool ci`.
+- Coverage threshold is 90% per file.
+- Coverage is enforced by `scripts/checkCoverage.m`.
+- Toolbox packaging and releases are handled in CI.
 
 ---
 
 ## Git Conventions
 
-- Tag format for releases: `vMAJOR.MINOR.PATCH` (e.g. `v1.0.0`)
-- CI badge is in README and must stay green before merge.
+- Tag format for releases: `vMAJOR.MINOR.PATCH`
 - Branch naming: `feature/short-description`, `fix/short-description`
-- Commit messages: imperative present tense (`Add query string parsing`, not `Added...`)
-- Do not commit `.asv` autosave files, `*.mexw64`, or compiled artifacts
+- Commit messages: imperative present tense
+- Do not commit autosave files or compiled artifacts
 - Every PR must pass CI before merge
 
 ---
@@ -309,45 +300,31 @@ CI runs automatically on every push via GitHub Actions using a MATLAB licensed r
 ## MATLAB Quick Reference
 
 ```matlab
-% ApiController registration helpers
 obj.get('/path',    @obj.handler);
 obj.post('/path',   @obj.handler);
 obj.put('/path',    @obj.handler);
 obj.delete('/path', @obj.handler);
 obj.patch('/path',  @obj.handler);
 
-% Path parameters
 id = req.PathParams("id");
-
-% Query parameters
 val = req.QueryParams("filter");
 
-% tcpserver setup
-server = tcpserver("0.0.0.0", 8080);
-server.ConnectionChangedFcn = @onConnect;
-configureCallback(server, "byte", 1, @onData);
+server = MatlabHttpServer(8080);
+server.start();
 
-% Reading and writing
-bytes = read(src, src.NumBytesAvailable, "uint8");
-write(src, uint8(responseStr));
+server = MatlabHttpServer(8080, Transport="go");
 
-% JSON
-body = jsondecode(rawJsonString);   % → struct
-out  = jsonencode(myStruct);        % → char
-
-% String type boundaries
-s = string(charArray);   % char → string
-c = char(stringVal);     % string → char
+body = jsondecode(rawJsonString);
+out = jsonencode(myStruct);
 ```
 
 ---
 
 ## HTTP Format Reference
 
-**Windows CMD Note:** When using `curl` from a Windows CMD shell, double quotes in a JSON body must be escaped (e.g., `\"{\"\"key\"\":\"\"val\"\"}\"`). PowerShell and Unix shells handle single-quoted JSON bodies correctly.
-
 **Minimal valid response:**
-```
+
+```text
 HTTP/1.1 200 OK\r\n
 Content-Type: application/json\r\n
 Content-Length: 16\r\n
@@ -357,7 +334,8 @@ Access-Control-Allow-Origin: *\r\n
 ```
 
 **CORS preflight (`OPTIONS`) response:**
-```
+
+```text
 HTTP/1.1 200 OK\r\n
 Access-Control-Allow-Origin: *\r\n
 Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS\r\n
@@ -367,7 +345,8 @@ Content-Length: 0\r\n
 ```
 
 **Minimal valid request (for parser testing):**
-```
+
+```text
 POST /api/users HTTP/1.1\r\n
 Host: localhost:8080\r\n
 Content-Type: application/json\r\n
