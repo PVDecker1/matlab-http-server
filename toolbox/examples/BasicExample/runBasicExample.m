@@ -1,5 +1,6 @@
 % Ensure toolbox is on path
-addpath(fullfile(pwd, '..', '..'));
+exampleDir = fileparts(mfilename("fullpath"));
+addpath(fullfile(exampleDir, '..', '..'));
 
 % Start a basic HTTP server
 disp("Starting BasicExample on port 8080...");

@@ -1,6 +1,7 @@
 %% 
 % Ensure toolbox is on path
-addpath(fullfile(pwd, '..', '..'));
+exampleDir = fileparts(mfilename("fullpath"));
+addpath(fullfile(exampleDir, '..', '..'));
 
 disp("Starting MultiControllerExample on port 8081...");
 server = MatlabHttpServer(8081);

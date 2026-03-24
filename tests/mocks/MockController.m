@@ -10,7 +10,20 @@ classdef MockController < mhs.ApiController
             res.send("test");
         end
         function res = handleEcho(~, req, res)
-            res.json(req.Body);
+            % req.Body might be uint8 (raw) or struct (already decoded by HttpParser)
+            if isstruct(req.Body)
+                res.json(req.Body);
+            elseif isempty(req.Body)
+                res.json(struct());
+            else
+                % Try decoding if it's raw bytes
+                try
+                    bodyStr = native2unicode(req.Body', 'utf-8');
+                    res.json(jsondecode(bodyStr));
+                catch
+                    res.status(400).send("Invalid JSON echo");
+                end
+            end
         end
     end
 end

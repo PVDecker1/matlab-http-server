@@ -1,23 +1,23 @@
 classdef MatlabHttpServer < handle
     % MatlabHttpServer Primary entry point for the HTTP server framework
-    %   A zero-dependency HTTP server based on tcpserver. Manages the socket
-    %   layer, accumulates partial reads, parses HTTP requests, and dispatches
-    %   them to registered ApiController instances via the Router.
+    %   A zero-dependency HTTP server. Manages the transport layer, 
+    %   dispatches requests to registered ApiController instances via the 
+    %   Router, and handles static file serving.
 
     properties (SetAccess = private)
         Port (1,1) double
         AllowedOrigin (1,1) string = "*"
     end
 
+    properties (Access = {?mhs.internal.TcpTransport, ?matlab.unittest.TestCase})
+        Transport    % mhs.internal.TcpTransport instance
+    end
+
     properties (Access = private)
-        TcpServer % The underlying tcpserver instance
         Router (1,1) mhs.Router
         StaticHandlers (1,:) cell = {}
-
-        % TODO: Clients that connect but never complete a request leave a
-        % BufferAccumulator in ClientStates forever. A max-age cleanup 
-        % strategy is needed in a future release to prevent memory leaks.
-        ClientStates (1,1) dictionary = dictionary() % map of ClientAddress to BufferAccumulator
+        DataListener = event.listener.empty
+        IsStarted (1,1) logical = false
     end
 
     methods
@@ -26,11 +26,13 @@ classdef MatlabHttpServer < handle
             arguments
                 port (1,1) double = 8080
                 options.AllowedOrigin (1,1) string = "*"
+                options.Transport (1,1) string = "java"
             end
 
             obj.Port = port;
             obj.AllowedOrigin = options.AllowedOrigin;
             obj.Router = mhs.Router();
+            obj.Transport = obj.createTransport(options.Transport, port);
         end
 
         function register(obj, controller)
@@ -44,13 +46,6 @@ classdef MatlabHttpServer < handle
 
         function serveStatic(obj, rootDir, options)
             % SERVESTATIC Register a directory for static file serving.
-            %   Files are served before API routes. If no file matches the request
-            %   path, the request falls through to registered ApiControllers.
-            %   Multiple calls are checked in registration order.
-            %
-            %   Example:
-            %     server.serveStatic("doc/");
-            %     server.serveStatic("doc/", UrlPrefix="/documentation/");
             arguments
                 obj     (1,1) MatlabHttpServer
                 rootDir (1,1) string
@@ -66,19 +61,18 @@ classdef MatlabHttpServer < handle
                 obj (1,1) MatlabHttpServer
             end
 
-            if ~isempty(obj.TcpServer)
-                disp("[matlab-http-server] Server is already running on port " + obj.Port);
+            if obj.IsStarted
+                disp("[matlab-http-server] Server already started on port " + obj.Port);
                 return;
             end
 
-            try
-                obj.TcpServer = tcpserver("0.0.0.0", obj.Port);
-                obj.TcpServer.ConnectionChangedFcn = @obj.onConnectionChanged;
-                configureCallback(obj.TcpServer, "byte", 1, @obj.onDataReceived);
-                disp("[matlab-http-server] Server started on port " + obj.Port);
-            catch ME
-                error("MatlabHttpServer:StartFailed", "Failed to start server on port %d: %s", obj.Port, ME.message);
+            if isempty(obj.DataListener) || ~isvalid(obj.DataListener)
+                obj.DataListener = addlistener(obj.Transport, 'DataReceived', @obj.onTransportData);
             end
+
+            obj.Transport.start();
+            obj.IsStarted = true;
+            disp("[matlab-http-server] Server started on port " + obj.Port);
         end
 
         function stop(obj)
@@ -87,12 +81,18 @@ classdef MatlabHttpServer < handle
                 obj (1,1) MatlabHttpServer
             end
 
-            if ~isempty(obj.TcpServer)
-                delete(obj.TcpServer);
-                obj.TcpServer = [];
-                obj.ClientStates = dictionary();
-                disp("[matlab-http-server] Server stopped.");
+            if ~isempty(obj.DataListener)
+                if all(isvalid(obj.DataListener))
+                    delete(obj.DataListener);
+                end
+                obj.DataListener = event.listener.empty;
             end
+
+            if ~isempty(obj.Transport) && isvalid(obj.Transport)
+                obj.Transport.stop();
+            end
+            obj.IsStarted = false;
+            disp("[matlab-http-server] Server stopped.");
         end
 
         function delete(obj)
@@ -104,92 +104,62 @@ classdef MatlabHttpServer < handle
             % PROCESSREQUESTFORTESTING Public wrapper for testing processRequest
             obj.processRequest(src, rawBytes);
         end
-
-        function callCallbackForTesting(obj, name, src, event)
-            % CALLCALLBACKFORTESTING Public wrapper for testing private callbacks
-            if strcmp(name, "onConnectionChanged")
-                obj.onConnectionChanged(src, event);
-            elseif strcmp(name, "onDataReceived")
-                obj.onDataReceived(src, event);
-            end
-        end
     end
 
     methods (Access = private)
-        function onConnectionChanged(obj, src, event)
-            % ONCONNECTIONCHANGED Handle new or closed TCP connections
-            try
-                if ~isempty(src.ClientAddress)
-                    % Track client state
-                    clientKey = string(src.ClientAddress) + ":" + string(src.ClientPort);
-                    obj.ClientStates(clientKey) = mhs.internal.BufferAccumulator();
-                end
-            catch ME
-                disp("[matlab-http-server ERROR] Connection error: " + ME.message);
+        function transport = createTransport(~, mode, port)
+            switch lower(mode)
+                case 'java'
+                    transport = mhs.internal.JavaSocketTransport(port);
+                case 'go'
+                    transport = mhs.internal.GoSidecarTransport(port);
+                otherwise
+                    error('MatlabHttpServer:invalidTransport', ...
+                        ['Unknown transport: "%s". ' ...
+                         'Valid options: "java" (default), "go".'], mode);
             end
         end
 
-        function onDataReceived(obj, src, event)
-            % ONDATARECEIVED Handle incoming TCP data
-            try
-                if isempty(src.ClientAddress)
-                    return;
-                end
-
-                clientKey = string(src.ClientAddress) + ":" + string(src.ClientPort);
-
-                % Fallback if connection event was missed
-                if ~isKey(obj.ClientStates, clientKey)
-                    obj.ClientStates(clientKey) = mhs.internal.BufferAccumulator();
-                end
-
-                accumulator = obj.ClientStates(clientKey);
-
-                % Read all available bytes
-                numBytes = src.NumBytesAvailable;
-                if numBytes > 0
-                    bytes = read(src, numBytes, "uint8");
-                    accumulator.add(bytes');
-
-                    if accumulator.isComplete()
-                        obj.processRequest(src, accumulator.getBuffer());
-                        % Disconnect after handling (no keep-alive)
-                        obj.ClientStates(clientKey) = [];
-                        % MathWorks tcpserver doesn't have an explicit close for individual clients
-                        % other than writing the response and letting the client close or closing the whole server
-                    end
-                end
-            catch ME
-                disp("[matlab-http-server ERROR] Data read error: " + ME.message);
-            end
+        function onTransportData(obj, ~, evt)
+            % ONTRANSPORTDATA Listener for Transport DataReceived event
+            obj.processRequest(evt.Socket, evt.RawBytes);
         end
 
-        function processRequest(obj, src, rawBytes)
+        function processRequest(obj, socket, rawBytes)
             % PROCESSREQUEST Parse request, handle OPTIONS, and dispatch
             try
                 req = mhs.internal.HttpParser.parse(rawBytes);
-                res = mhs.HttpResponse(src, obj.AllowedOrigin);
+                res = mhs.HttpResponse(obj.AllowedOrigin);
 
                 if strcmpi(req.Method, "OPTIONS")
                     mhs.internal.CorsHandler.handlePreflight(res);
                 else
                     % Check static handlers before API router
+                    handled = false;
                     for i = 1:numel(obj.StaticHandlers)
                         if obj.StaticHandlers{i}.handle(req, res)
-                            return;
+                            handled = true;
+                            break;
                         end
                     end
 
-                    % Fall through to API router
-                    obj.Router.dispatch(req, res);
+                    if ~handled
+                        % Fall through to API router
+                        obj.Router.dispatch(req, res);
+                    end
                 end
+                
+                % Write the response back via transport
+                obj.Transport.writeResponse(socket, res.getResponseBytes());
+                
             catch ME
                 disp("[matlab-http-server ERROR] Request processing error: " + ME.message);
 
                 % Attempt to send 400 Bad Request
                 try
-                    res = mhs.HttpResponse(src, obj.AllowedOrigin);
+                    res = mhs.HttpResponse(obj.AllowedOrigin);
                     res.status(400).send("Bad Request");
+                    obj.Transport.writeResponse(socket, res.getResponseBytes());
                 catch
                     % Ignore further errors
                 end

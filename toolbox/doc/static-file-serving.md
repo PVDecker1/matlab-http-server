@@ -14,6 +14,19 @@ server.start();
 
 By default, files are served from the root URL path (`/`).
 
+## Same-Origin Frontend + API
+
+One useful pattern is to serve your frontend assets and API routes from the same MATLAB server.
+
+```matlab
+server = MatlabHttpServer(8080);
+server.register(MyController()); % handles /api/...
+server.serveStatic("public/");
+server.start();
+```
+
+This keeps the browser app and the API on the same origin, which simplifies local tools and internal dashboards.
+
 ## URL Prefixes
 
 You can serve static files under a specific URL prefix using the `UrlPrefix` option.

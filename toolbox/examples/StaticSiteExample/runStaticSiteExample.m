@@ -5,14 +5,16 @@
 
 % 1. Add the toolbox to path (if not already managed by project)
 % This allows running the example directly from the examples folder.
-addpath(fullfile(pwd, '..', '..'));
+exampleDir = fileparts(mfilename("fullpath"));
+addpath(fullfile(exampleDir, '..', '..'));
 
 % 2. Locate the static site directory
 % The static files (index.html, about.html) are stored in the 'site/' subfolder.
-siteDir = fullfile(pwd, 'site');
+siteDir = fullfile(exampleDir, 'site');
 
 if ~exist(siteDir, 'dir')
-    error('Example:MissingSiteDir', 'Could not find the "site/" directory. Make sure you are running this script from its containing folder.');
+    error('Example:MissingSiteDir', ...
+        'Could not find the "site/" directory for StaticSiteExample.');
 end
 
 % 3. Start a MatlabHttpServer on port 8082

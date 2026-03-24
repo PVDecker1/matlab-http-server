@@ -1,6 +1,7 @@
 # Getting Started with matlab-http-server
 
 This guide will walk you through installing the framework and building your first REST API in MATLAB.
+If you prefer an interactive Live Script format, see `toolbox/doc/GettingStarted.m`.
 
 ## Installation
 
@@ -18,8 +19,9 @@ You have two primary ways to install `matlab-http-server`:
 ## Requirements
 
 - **MATLAB R2022b or later**: The framework relies heavily on the `dictionary` type introduced in R2022b.
-- **No Toolboxes Required**: Core functionality works with base MATLAB and the built-in `tcpserver`.
+- **No Toolboxes Required**: Core functionality works with base MATLAB.
 - **Parallel Computing Toolbox (Optional)**: Required if you want to use `parfeval` for non-blocking asynchronous handlers.
+- **Go Binary (Optional)**: Required only when you explicitly select the Go transport.
 
 ## Your First Controller
 
@@ -98,7 +100,7 @@ The framework includes several examples to demonstrate more advanced features:
 - **BasicExample**: (`toolbox/examples/BasicExample/`) Shows basic routing, POST handling, and path parameters.
 - **MultiControllerExample**: (`toolbox/examples/MultiControllerExample/`) Demonstrates how to split a large API into multiple controller classes.
 - **StaticSiteExample**: (`toolbox/examples/StaticSiteExample/`) Shows how to serve a frontend (HTML/CSS) alongside your API.
-- **SignalAnalyzer**: (`toolbox/examples/SignalAnalyzer/`) A complex example featuring a React frontend that interacts with MATLAB computational code.
+- **SignalAnalyzer**: (`toolbox/examples/SignalAnalyzer/`) A more complex example featuring a React frontend served from the same MATLAB HTTP server. If the preferred example port is busy, the script automatically chooses a nearby free port.
 
 To run an example, navigate to its folder in MATLAB and run the `run...` script.
 

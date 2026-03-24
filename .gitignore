@@ -16,3 +16,7 @@ release/*.mltbx
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Ensure toolbox binaries are tracked
+!toolbox/bin/
+!toolbox/bin/**/*

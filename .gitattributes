@@ -9,3 +9,4 @@
 *.mltbx binary
 *.png binary
 *.jpg binary
+toolbox/bin/**/* binary

@@ -5,10 +5,10 @@ classdef HttpResponse < handle
     %   the response back to the client socket.
 
     properties (Access = private)
-        Socket % The tcpserver connection instance
         StatusCode (1,1) double = 200
         Headers
         Body (:,1) uint8 = uint8([])
+        ResponseBytes (:,1) uint8 = uint8([])
         Sent (1,1) logical = false
     end
 
@@ -17,14 +17,12 @@ classdef HttpResponse < handle
     end
 
     methods
-        function obj = HttpResponse(socket, allowedOrigin)
-            % HTTPRESPONSE Construct an HttpResponse associated with a socket
+        function obj = HttpResponse(allowedOrigin)
+            % HTTPRESPONSE Construct an HttpResponse
             arguments
-                socket = [] % Optional for testing
                 allowedOrigin (1,1) string = "*"
             end
 
-            obj.Socket = socket;
             obj.AllowedOrigin = allowedOrigin;
 
             % Set default headers
@@ -136,17 +134,21 @@ classdef HttpResponse < handle
             end
 
             responseStr = statusLine + headerLines + char(13) + char(10);
-            responseBytes = [unicode2native(char(responseStr), 'utf-8'), obj.Body'];
-
-            if ~isempty(obj.Socket)
-                try
-                    write(obj.Socket, responseBytes);
-                catch ME
-                    disp("[matlab-http-server ERROR] Failed to write to socket: " + ME.message);
-                end
-            end
+            obj.ResponseBytes = [unicode2native(char(responseStr), 'utf-8'), obj.Body']';
 
             obj.Sent = true;
+        end
+
+        function bytes = getResponseBytes(obj)
+            % GETRESPONSEBYTES Get the full raw HTTP response as a uint8 array.
+            %   Returns the status line, headers, and body.
+            arguments
+                obj (1,1) mhs.HttpResponse
+            end
+            if ~obj.Sent
+                obj.write();
+            end
+            bytes = obj.ResponseBytes;
         end
 
         function sent = isSent(obj)
