@@ -17,7 +17,7 @@ classdef GoSidecarTransport < mhs.internal.TcpTransport
         BinaryPath (1,1) string
     end
 
-    properties (Access = private)
+    properties (Access = {?matlab.unittest.TestCase})
         Writer       % java.io.PrintWriter — writes to Go stdin
         Reader       % java.io.BufferedReader — reads from Go stdout
         Timer        % timer — polls Go stdout
@@ -129,7 +129,7 @@ classdef GoSidecarTransport < mhs.internal.TcpTransport
         end
     end
 
-    methods (Access = private)
+    methods (Access = {?matlab.unittest.TestCase})
         function pollStdout(obj)
             if ~obj.IsRunning || isempty(obj.Reader)
                 return;
@@ -207,7 +207,7 @@ classdef GoSidecarTransport < mhs.internal.TcpTransport
             % without modification.
             CRLF = char([13 10]);
 
-            if ~isempty(req.query)
+            if strlength(string(req.query)) > 0
                 target = string(req.path) + "?" + string(req.query);
             else
                 target = string(req.path);

@@ -13,7 +13,7 @@ classdef JavaSocketTransport < mhs.internal.TcpTransport
         Timer
     end
 
-    properties (Access = private)
+    properties (Access = {?matlab.unittest.TestCase})
         IsRunning (1,1) logical = false
         ClientKeys (1,:) string = string.empty(1, 0)
         ClientSockets (1,:) cell = {}
@@ -114,7 +114,7 @@ classdef JavaSocketTransport < mhs.internal.TcpTransport
         end
     end
 
-    methods (Access = private)
+    methods (Access = {?matlab.unittest.TestCase})
         function pollSockets(obj)
             if ~obj.IsRunning || isempty(obj.ServerSocket)
                 return;
