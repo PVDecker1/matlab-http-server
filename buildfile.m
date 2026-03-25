@@ -19,8 +19,6 @@ function plan = buildfile
     % Default task is 'test'
     plan.DefaultTasks = "test";
     
-    % Package depends on test
-    plan("package").Dependencies = "test";
 end
 
 function testAction(context)

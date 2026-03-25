@@ -72,8 +72,7 @@ jobs:
           path: build/coverage/
 
   package:
-    needs: test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    needs: [build-go, test]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -86,6 +85,9 @@ jobs:
         with:
           name: matlab-http-bridge-binaries
           path: toolbox/bin/
+
+      - name: Restore Linux execute permission
+        run: chmod +x toolbox/bin/glnxa64/matlab-http-bridge
 
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v2
@@ -103,7 +105,7 @@ jobs:
           path: matlab-http-server.mltbx
 
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: matlab-http-server.mltbx

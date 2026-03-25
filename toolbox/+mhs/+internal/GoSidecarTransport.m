@@ -39,6 +39,8 @@ classdef GoSidecarTransport < mhs.internal.TcpTransport
                 return;
             end
 
+            mhs.internal.GoSidecarTransport.ensureBinaryExecutable(obj.BinaryPath);
+
             pb = java.lang.ProcessBuilder({char(obj.BinaryPath), ...
                 '--port', char(string(obj.Port))});
             pb.redirectErrorStream(true);
@@ -198,6 +200,28 @@ classdef GoSidecarTransport < mhs.internal.TcpTransport
                 error('MatlabHttpServer:binaryNotFound', ...
                     ['Go sidecar binary not found: %s\n' ...
                      'Build with: cd sidecar && make build-all'], path);
+            end
+        end
+
+        function ensureBinaryExecutable(path)
+            arguments
+                path (1,1) string
+            end
+
+            if ispc || ~isfile(path)
+                return;
+            end
+
+            [isOk, attributes] = fileattrib(path);
+            if isOk && isfield(attributes, "UserExecute") && attributes.UserExecute
+                return;
+            end
+
+            [status, output] = system(sprintf('chmod +x "%s"', char(path)));
+            if status ~= 0
+                error("MatlabHttpServer:BinaryPermissionDenied", ...
+                    "Unable to mark Go sidecar binary as executable: %s", ...
+                    strtrim(output));
             end
         end
 

@@ -43,6 +43,13 @@ classdef TestGoSidecarTransport < matlab.unittest.TestCase
             testCase.verifyTrue(true); 
         end
 
+        function testEnsureBinaryExecutableNoOpsForExistingExecutable(testCase)
+            testCase.Transport = mhs.internal.GoSidecarTransport(testCase.Port);
+            testCase.verifyWarningFree(@() ...
+                mhs.internal.GoSidecarTransport.ensureBinaryExecutable( ...
+                    testCase.Transport.BinaryPath));
+        end
+
         function testStartStop(testCase)
             testCase.Transport = mhs.internal.GoSidecarTransport(testCase.Port);
             testCase.Transport.start();
