@@ -264,6 +264,17 @@ Run on a shared machine in a headless or service-style deployment. Put Nginx or 
 Caddy (TLS, :443) -> matlab-http-server (:8080, localhost only)
 ```
 
+### Licensing Note
+
+Single-user local use and shared multi-user deployments may have different MathWorks licensing requirements. If you plan to host a team-facing web app or API on a shared machine, verify that your organization's MATLAB license permits that deployment model and has sufficient named users or concurrent seats, as applicable.
+
+See the official MathWorks licensing documentation for details:
+
+- [Individual License Administration](https://www.mathworks.com/help/install/license/individual-license-administration.html)
+- [Administer Network Licenses](https://www.mathworks.com/help/install/administer-network-licenses.html)
+- [Concurrent License Administration](https://www.mathworks.com/help/install/license/concurrent-licenses.html)
+- [Network Named User License Administration](https://www.mathworks.com/help/install/license/key-administrative-tasks.html)
+
 ---
 
 ## Async Handlers

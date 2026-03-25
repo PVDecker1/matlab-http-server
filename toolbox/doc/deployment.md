@@ -63,6 +63,17 @@ server = MatlabHttpServer(8080, Transport="go");
 
 To share a MATLAB API or internal tool with a small team, run it on a shared machine and put a reverse proxy such as Caddy or Nginx in front of it.
 
+### Licensing Considerations
+
+Shared deployments can have different MathWorks licensing requirements than a single-user local workflow. If multiple users will access the same MATLAB-backed web application or API, confirm that your organization's MATLAB license allows that deployment pattern and has enough named users or concurrent seats for the expected usage.
+
+This project does not change or extend MathWorks licensing terms. Treat the official MathWorks documentation as the source of truth for what your organization is permitted to run.
+
+- [Individual License Administration](https://www.mathworks.com/help/install/license/individual-license-administration.html)
+- [Administer Network Licenses](https://www.mathworks.com/help/install/administer-network-licenses.html)
+- [Concurrent License Administration](https://www.mathworks.com/help/install/license/concurrent-licenses.html)
+- [Network Named User License Administration](https://www.mathworks.com/help/install/license/key-administrative-tasks.html)
+
 ### Why Use a Reverse Proxy?
 
 - **Security**: Dedicated web servers are better suited for external network exposure.
