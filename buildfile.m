@@ -86,11 +86,12 @@ function packageAction(context)
         version = extractAfter(version, 1);
         fprintf('Setting toolbox version to %s (from GITHUB_REF_NAME)\n', version);
 
-        opts = matlab.addons.toolbox.toolboxOptions(prjFile);
+        opts = matlab.addons.toolbox.ToolboxOptions(prjFile);
         opts.ToolboxVersion = version;
+        opts.OutputFile = outFile;
 
         fprintf('Packaging into %s...\n', outFile);
-        matlab.addons.toolbox.packageToolbox(opts, outFile);
+        matlab.addons.toolbox.packageToolbox(opts);
     else
         fprintf('Packaging %s into %s...\n', prjFile, outFile);
         matlab.addons.toolbox.packageToolbox(prjFile, outFile);
