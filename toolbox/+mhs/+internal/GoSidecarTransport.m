@@ -39,6 +39,8 @@ classdef GoSidecarTransport < mhs.internal.TcpTransport
                 return;
             end
 
+            mhs.internal.GoSidecarTransport.ensureBinaryExecutable(obj.BinaryPath);
+
             pb = java.lang.ProcessBuilder({char(obj.BinaryPath), ...
                 '--port', char(string(obj.Port))});
             pb.redirectErrorStream(true);
@@ -110,18 +112,15 @@ classdef GoSidecarTransport < mhs.internal.TcpTransport
             resp.id      = char(socket.id);
             resp.status  = status;
             
-            % Convert dictionary to struct for jsonencode if needed
-            if isa(headers, 'dictionary')
-                hStruct = struct();
-                keys = headers.keys();
-                for i = 1:numel(keys)
-                    field = matlab.lang.makeValidName(char(keys(i)));
-                    hStruct.(field) = char(headers(keys(i)));
-                end
-                resp.headers = hStruct;
-            else
-                resp.headers = headers;
+            % parseResponseBytes always returns a dictionary; convert it to
+            % a struct because jsonencode does not support dictionary.
+            hStruct = struct();
+            keys = headers.keys();
+            for i = 1:numel(keys)
+                field = matlab.lang.makeValidName(char(keys(i)));
+                hStruct.(field) = char(headers(keys(i)));
             end
+            resp.headers = hStruct;
             
             resp.body    = char(matlab.net.base64encode(body));
 
@@ -178,26 +177,72 @@ classdef GoSidecarTransport < mhs.internal.TcpTransport
             % Locate the pre-compiled binary based on current platform.
             toolboxRoot = fileparts(fileparts(fileparts( ...
                 mfilename('fullpath'))));
-            if ispc
-                path = fullfile(toolboxRoot, 'bin', 'win64', ...
-                    'matlab-http-bridge.exe');
-            elseif ismac
-                if strcmp(computer('arch'), 'maca64')
-                    path = fullfile(toolboxRoot, 'bin', 'maca64', ...
-                        'matlab-http-bridge');
-                else
-                    path = fullfile(toolboxRoot, 'bin', 'maci64', ...
-                        'matlab-http-bridge');
-                end
-            else
-                path = fullfile(toolboxRoot, 'bin', 'glnxa64', ...
-                    'matlab-http-bridge');
+            path = mhs.internal.GoSidecarTransport.findBinaryForPlatform( ...
+                toolboxRoot, ispc, ismac, string(computer('arch')));
+        end
+
+        function ensureBinaryExecutable(path)
+            arguments
+                path (1,1) string
             end
+
+            if ispc || ~isfile(path)
+                return;
+            end
+
+            [isOk, attributes] = fileattrib(path);
+            if isOk && isfield(attributes, "UserExecute") && attributes.UserExecute
+                return;
+            end
+
+            [status, output] = system(sprintf('chmod +x "%s"', char(path)));
+            if status ~= 0
+                error("MatlabHttpServer:BinaryPermissionDenied", ...
+                    "Unable to mark Go sidecar binary as executable: %s", ...
+                    strtrim(output));
+            end
+        end
+
+        function path = findBinaryForPlatform(toolboxRoot, isWindows, isMac, arch)
+            arguments
+                toolboxRoot (1,1) string
+                isWindows (1,1) logical
+                isMac (1,1) logical
+                arch (1,1) string
+            end
+
+            relativePath = mhs.internal.GoSidecarTransport ...
+                .binaryRelativePathForPlatform(isWindows, isMac, arch);
+            path = fullfile(toolboxRoot, relativePath);
 
             if ~isfile(path)
                 error('MatlabHttpServer:binaryNotFound', ...
                     ['Go sidecar binary not found: %s\n' ...
                      'Build with: cd sidecar && make build-all'], path);
+            end
+        end
+
+        function relativePath = binaryRelativePathForPlatform(isWindows, isMac, arch)
+            arguments
+                isWindows (1,1) logical
+                isMac (1,1) logical
+                arch (1,1) string
+            end
+
+            if isWindows
+                relativePath = fullfile('bin', 'win64', ...
+                    'matlab-http-bridge.exe');
+            elseif isMac
+                if arch == "maca64"
+                    relativePath = fullfile('bin', 'maca64', ...
+                        'matlab-http-bridge');
+                else
+                    relativePath = fullfile('bin', 'maci64', ...
+                        'matlab-http-bridge');
+                end
+            else
+                relativePath = fullfile('bin', 'glnxa64', ...
+                    'matlab-http-bridge');
             end
         end
 

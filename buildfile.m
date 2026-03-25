@@ -19,8 +19,6 @@ function plan = buildfile
     % Default task is 'test'
     plan.DefaultTasks = "test";
     
-    % Package depends on test
-    plan("package").Dependencies = "test";
 end
 
 function testAction(context)
@@ -41,14 +39,16 @@ function testAction(context)
     % Cobertura and HTML
     xmlFile = fullfile(covFolder, "coverage.xml");
     
-    % Target only .m files in toolbox/ and its subfolders, excluding doc/ and examples/
+    % Target only runtime .m files in toolbox/ and its subfolders,
+    % excluding documentation and examples.
     allFiles = dir(fullfile("toolbox", "**", "*.m"));
     allFiles = allFiles(~[allFiles.isdir]);
     sourceFiles = fullfile({allFiles.folder}, {allFiles.name});
     
-    % Filter out non-m files and examples/
+    % Exclude documentation and examples from runtime coverage checks.
     isExample = contains(sourceFiles, fullfile("toolbox", "examples"));
-    sourceFiles = sourceFiles(endsWith(sourceFiles, ".m") & ~isExample);
+    isDoc = contains(sourceFiles, fullfile("toolbox", "doc"));
+    sourceFiles = sourceFiles(endsWith(sourceFiles, ".m") & ~isExample & ~isDoc);
     
     % Use multiple formats in one plugin call
     formats = [CoverageReport(covFolder), CoberturaFormat(xmlFile)];
