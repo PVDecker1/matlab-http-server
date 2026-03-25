@@ -43,11 +43,66 @@ classdef TestGoSidecarTransport < matlab.unittest.TestCase
             testCase.verifyTrue(true); 
         end
 
+        function testBinaryRelativePathForWindows(testCase)
+            relativePath = mhs.internal.GoSidecarTransport ...
+                .binaryRelativePathForPlatform(true, false, "win64");
+
+            testCase.verifyEqual(string(relativePath), ...
+                string(fullfile("bin", "win64", "matlab-http-bridge.exe")));
+        end
+
+        function testBinaryRelativePathForMacArm(testCase)
+            relativePath = mhs.internal.GoSidecarTransport ...
+                .binaryRelativePathForPlatform(false, true, "maca64");
+
+            testCase.verifyEqual(string(relativePath), ...
+                string(fullfile("bin", "maca64", "matlab-http-bridge")));
+        end
+
+        function testBinaryRelativePathForMacIntel(testCase)
+            relativePath = mhs.internal.GoSidecarTransport ...
+                .binaryRelativePathForPlatform(false, true, "maci64");
+
+            testCase.verifyEqual(string(relativePath), ...
+                string(fullfile("bin", "maci64", "matlab-http-bridge")));
+        end
+
+        function testBinaryRelativePathForLinux(testCase)
+            relativePath = mhs.internal.GoSidecarTransport ...
+                .binaryRelativePathForPlatform(false, false, "glnxa64");
+
+            testCase.verifyEqual(string(relativePath), ...
+                string(fullfile("bin", "glnxa64", "matlab-http-bridge")));
+        end
+
+        function testFindBinaryForPlatformErrorsWhenMissing(testCase)
+            missingRoot = fullfile(tempdir, "mhs-missing-binary-" + string(java.util.UUID.randomUUID));
+            mkdir(missingRoot);
+            cleanup = onCleanup(@() rmdir(missingRoot, "s"));
+
+            testCase.verifyError(@() ...
+                mhs.internal.GoSidecarTransport.findBinaryForPlatform( ...
+                    string(missingRoot), false, false, "glnxa64"), ...
+                "MatlabHttpServer:binaryNotFound");
+            clear cleanup;
+        end
+
         function testEnsureBinaryExecutableNoOpsForExistingExecutable(testCase)
             testCase.Transport = mhs.internal.GoSidecarTransport(testCase.Port);
             testCase.verifyWarningFree(@() ...
                 mhs.internal.GoSidecarTransport.ensureBinaryExecutable( ...
                     testCase.Transport.BinaryPath));
+        end
+
+        function testFindBinaryForPlatformReturnsExistingBinary(testCase)
+            testCase.Transport = mhs.internal.GoSidecarTransport(testCase.Port);
+            toolboxRoot = string(fileparts(fileparts(fileparts( ...
+                testCase.Transport.BinaryPath))));
+
+            resolved = mhs.internal.GoSidecarTransport.findBinaryForPlatform( ...
+                toolboxRoot, ispc, ismac, string(computer('arch')));
+
+            testCase.verifyEqual(resolved, testCase.Transport.BinaryPath);
         end
 
         function testStartStop(testCase)
@@ -118,6 +173,30 @@ classdef TestGoSidecarTransport < matlab.unittest.TestCase
             testCase.verifyEqual(string(headers('Content-Type')), "application/json");
             testCase.verifyEqual(string(headers('X-Test')), "val");
             testCase.verifyEqual(char(body), '{"status":"ok"}');
+        end
+
+        function testWriteResponseSerializesHeadersForJson(testCase)
+            testCase.Transport = mhs.internal.GoSidecarTransport(testCase.Port);
+            writer = java.io.StringWriter();
+            testCase.Transport.Writer = java.io.PrintWriter(writer, true);
+
+            CRLF = char([13 10]);
+            responseBytes = uint8([ ...
+                'HTTP/1.1 201 Created' CRLF ...
+                'Content-Type: application/json' CRLF ...
+                'X-Test: value' CRLF ...
+                CRLF ...
+                '{"ok":true}']);
+
+            socket = struct("id", "req-123", "transport", testCase.Transport);
+            testCase.Transport.writeResponse(socket, responseBytes);
+
+            payload = jsondecode(char(writer.toString()));
+            testCase.verifyEqual(string(payload.id), "req-123");
+            testCase.verifyEqual(payload.status, 201);
+            testCase.verifyEqual(string(payload.headers.Content_Type), "application/json");
+            testCase.verifyEqual(string(payload.headers.X_Test), "value");
+            testCase.verifyEqual(char(matlab.net.base64decode(payload.body)), '{"ok":true}');
         end
 
         function testBuildRawRequestWithoutQueryOrBody(testCase)
