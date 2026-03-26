@@ -6,7 +6,7 @@ This file provides guidance for AI coding agents working on this codebase. Read 
 
 ## What This Project Is
 
-`matlab-http-server` is a zero-dependency HTTP server framework for MATLAB. It is intended to support both REST APIs and static file serving in base MATLAB, with an optional Go sidecar transport for server-oriented deployments.
+`matlab-http-server` is a zero-dependency HTTP server framework for MATLAB. It is intended to support both REST APIs and static file serving in base MATLAB, with an optional Go sidecar transport for automated or long-running MATLAB workflows.
 
 Developers define endpoints by subclassing `mhs.ApiController`, implementing the abstract `registerRoutes` method, and writing handler methods with the signature `res = myHandler(obj, req, res)`.
 

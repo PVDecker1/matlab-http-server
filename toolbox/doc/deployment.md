@@ -44,14 +44,16 @@ This keeps the frontend and API on the same origin and avoids extra CORS complex
 Uses `java.net.ServerSocket` coordinated by a MATLAB timer loop. Works in **Base MATLAB**.
 
 - **Pros**: Zero toolbox dependencies, straightforward local use, good default for desktop tools and demos.
-- **Cons**: Less scalable than the Go sidecar for heavier request loads.
+- **Cons**: Still subject to MATLAB's single-threaded handler model.
 
 ### 2. Go Sidecar
 
 Spawns an external Go binary to handle the HTTP socket layer and communicates with MATLAB over standard I/O.
 
-- **Pros**: Better fit for headless or more server-oriented use cases, still works with Base MATLAB.
+- **Pros**: Optional transport for improved I/O handling in automated or long-running MATLAB workflows, still works with Base MATLAB.
 - **Cons**: Requires the bundled `matlab-http-bridge` binary.
+
+The Go transport does not change MATLAB's execution model or licensing requirements and should be used within the same constraints as the default transport.
 
 ```matlab
 server = MatlabHttpServer(8080, Transport="go");
@@ -61,11 +63,13 @@ server = MatlabHttpServer(8080, Transport="go");
 
 ## Centralized - Small Team
 
-To share a MATLAB API or internal tool with a small team, run it on a shared machine and put a reverse proxy such as Caddy or Nginx in front of it.
+To make a MATLAB-backed internal tool available within a small team environment, run it on a shared machine and put a reverse proxy such as Caddy or Nginx in front of it.
 
 ### Licensing Considerations
 
 Shared deployments can have different MathWorks licensing requirements than a single-user local workflow. If multiple users will access the same MATLAB-backed web application or API, confirm that your organization's MATLAB license allows that deployment pattern and has enough named users or concurrent seats for the expected usage.
+
+Access to MATLAB functionality through this server should be limited to users who are appropriately licensed, and deployments should not be used to provide MATLAB capabilities to unlicensed users.
 
 This project does not change or extend MathWorks licensing terms. Treat the official MathWorks documentation as the source of truth for what your organization is permitted to run.
 
@@ -74,7 +78,11 @@ This project does not change or extend MathWorks licensing terms. Treat the offi
 - [Concurrent License Administration](https://www.mathworks.com/help/install/license/concurrent-licenses.html)
 - [Network Named User License Administration](https://www.mathworks.com/help/install/license/key-administrative-tasks.html)
 
+This setup is intended for lightweight internal use cases and is not a substitute for MATLAB Production Server in production or high-concurrency environments.
+
 ### Why Use a Reverse Proxy?
+
+For internal or controlled network environments, a reverse proxy can be used to manage access and routing.
 
 - **Security**: Dedicated web servers are better suited for external network exposure.
 - **TLS/SSL**: `matlab-http-server` does not provide HTTPS directly.

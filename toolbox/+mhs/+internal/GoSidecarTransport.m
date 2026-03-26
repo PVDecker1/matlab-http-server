@@ -3,7 +3,7 @@ classdef GoSidecarTransport < mhs.internal.TcpTransport
 %   Works with base MATLAB — no toolboxes required.
 %   Go binary handles all HTTP; MATLAB handles request processing.
 %   Communication over stdin/stdout using line-delimited JSON.
-%   Preferred for headless, server, and production deployments.
+%   Optional transport for automated or long-running MATLAB workflows.
 %
 %   The binary must exist at toolbox/bin/<platform>/matlab-http-bridge[.exe].
 %   Build from source: cd sidecar && make build-all
