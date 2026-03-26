@@ -70,7 +70,7 @@ curl http://localhost:8080/api/echo -d '{"msg":"hi"}' -H "Content-Type: applicat
 curl http://localhost:8080/api/echo -d "{\"msg\":\"hi\"}" -H "Content-Type: application/json"
 ```
 
-No config files, no external dependencies for core functionality, and no MATLAB Production Server license.
+No config files, no external dependencies for core functionality, and no additional MATLAB products required by the framework itself beyond an appropriate MATLAB license.
 
 ---
 
@@ -110,7 +110,7 @@ addpath(fullfile(pwd, 'matlab-http-server', 'toolbox'))
 
 ## Transport Selection
 
-`matlab-http-server` is designed around transport abstraction. The default path should work in base MATLAB, while the Go sidecar remains available as an explicit opt-in for server-oriented deployments.
+`matlab-http-server` is designed around transport abstraction. The default path should work in base MATLAB, while the Go sidecar remains available as an explicit opt-in for automated or long-running MATLAB workflows.
 
 ```matlab
 % Default transport
@@ -266,7 +266,9 @@ Caddy (TLS, :443) -> matlab-http-server (:8080, localhost only)
 
 ### Licensing Note
 
-Single-user local use and shared multi-user deployments may have different MathWorks licensing requirements. If you plan to host a team-facing web app or API on a shared machine, verify that your organization's MATLAB license permits that deployment model and has sufficient named users or concurrent seats, as applicable.
+This project is intended to operate within the scope of an existing MATLAB license and does not extend MATLAB access beyond licensed users.
+
+Single-user local use and shared team deployments may have different MathWorks licensing requirements. If you plan to host a MATLAB-backed internal tool on a shared machine, verify that your organization's MATLAB license permits that deployment model and has sufficient named users or concurrent seats, as applicable.
 
 See the official MathWorks licensing documentation for details:
 
