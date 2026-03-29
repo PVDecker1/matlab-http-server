@@ -106,6 +106,7 @@ To run an example, navigate to its folder in MATLAB and run the `run...` script.
 
 ## Next Steps
 
+- **[Controller Testing With `mhs.ApiTestCase`](api-test-case.md)**: Test controllers through a real router without opening live sockets.
 - **[Routing Guide](routing.md)**: Learn about path parameters, specific route ordering, and supported HTTP verbs.
 - **[Request & Response Reference](request-response.md)**: Detailed documentation of the `HttpRequest` and `HttpResponse` classes.
 - **[Static File Serving](static-file-serving.md)**: How to host your frontend assets directly from the server.
