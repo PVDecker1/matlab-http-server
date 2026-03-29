@@ -128,6 +128,8 @@ Follow the [MATLAB Coding Guidelines](https://github.com/mathworks/MATLAB-Coding
 - Every public function and class must have a help comment block immediately after the definition line.
 - No magic numbers; use named constants or descriptive variables.
 - Minimal MATLAB version is R2022b.
+- Controller tests should prefer `mhs.ApiTestCase` over manual request construction when it fits the test.
+- `mhs.ApiTestCase` is a mixin helper. Test classes should inherit from `matlab.unittest.TestCase & mhs.ApiTestCase`.
 
 ### Naming
 
@@ -218,7 +220,7 @@ These design decisions are intentional.
 5. Static file serving is in scope and should remain a first-class feature.
 6. `processRequestForTesting` should continue to bypass transport for unit testing.
 7. Do not reintroduce Instrument Control Toolbox or Parallel Computing Toolbox as core runtime dependencies.
-
+8. `mhs.ApiTestCase` dispatch should use a fresh `mhs.Router` per call.
 ---
 
 ## What Is In Scope
@@ -231,6 +233,7 @@ These design decisions are intentional.
 - Query string parsing
 - Static file serving via `mhs.StaticFileHandler` and `MatlabHttpServer.serveStatic`
 - Binary file serving via `HttpResponse.sendBytes`
+- `mhs.ApiTestCase` mixin helper for controller testing
 - Java and Go transport implementations under the transport abstraction
 - `matlab.unittest` test coverage for public classes
 - Documentation in `toolbox/doc/`

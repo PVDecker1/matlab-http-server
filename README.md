@@ -12,6 +12,7 @@ A zero-dependency HTTP server framework for MATLAB, inspired by Flask. Build RES
 ## Documentation
 
 - [Getting Started](toolbox/doc/getting-started.md)
+- [Controller Testing With `mhs.ApiTestCase`](toolbox/doc/api-test-case.md)
 - [Routing](toolbox/doc/routing.md)
 - [Request & Response](toolbox/doc/request-response.md)
 - [Static File Serving](toolbox/doc/static-file-serving.md)
@@ -336,7 +337,7 @@ matlab-http-server/
 |   buildfile.m
 |   .gitignore
 |   .gitattributes
-+---images/
++---assets/
 +---toolbox/
 |   |   MatlabHttpServer.m
 |   +---+mhs/
@@ -377,6 +378,8 @@ buildtool ci
 ```
 
 See [AGENTS.md](AGENTS.md) for architecture details, coding conventions, and agent-specific guidance.
+
+For controller-level tests, prefer [`mhs.ApiTestCase`](toolbox/+mhs/ApiTestCase.m) so you can dispatch requests through a fresh router without opening live sockets.
 
 ---
 

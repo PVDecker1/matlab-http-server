@@ -52,6 +52,8 @@ We enforce a **90% line coverage threshold** for all files in the `toolbox/` fol
 ### Test Seams
 Use the `getRawResponseForTesting()` method on `mhs.HttpResponse` to verify response state in your unit tests without needing a live network connection.
 
+For controller-level tests, prefer `mhs.ApiTestCase` so you can dispatch requests through a fresh router without opening live sockets. See [Controller Testing With `mhs.ApiTestCase`](api-test-case.md).
+
 ---
 
 ## Build Pipeline
